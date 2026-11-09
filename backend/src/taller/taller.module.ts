@@ -12,3 +12,4 @@ import { Alumno } from '../alumno/entities/alumno.entity.js';
   exports: [TallerService, TypeOrmModule],
 })
 export class TallerModule {}
+

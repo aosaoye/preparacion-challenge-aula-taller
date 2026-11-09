@@ -1,177 +1,171 @@
-import React from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Student } from '../types';
+import { Avatar, Badge, colors, EmptyState, Field, radius, space, Text } from '../ui';
 
 type StudentOverviewCardProps = {
-    search: string;
-    onSearchChange: (value: string) => void;
-    filteredStudents: Student[];
-    selectedWorkshopId: number;
-    workshopName: string;
-    onToggleEnrollment: (studentId: number) => void;
+  search: string;
+  onSearchChange: (value: string) => void;
+  filteredStudents: Student[];
+  selectedWorkshopId: number;
+  workshopName: string;
+  onToggleEnrollment: (studentId: number) => void;
+  onDeleteStudent?: (studentId: number) => void;
+  isEnrolled?: (studentId: number) => boolean;
 };
 
 export function StudentOverviewCard({
-    search,
-    onSearchChange,
-    filteredStudents,
-    selectedWorkshopId,
-    workshopName,
-    onToggleEnrollment,
+  search,
+  onSearchChange,
+  filteredStudents,
+  selectedWorkshopId,
+  workshopName,
+  onToggleEnrollment,
+  onDeleteStudent,
+  isEnrolled,
 }: StudentOverviewCardProps) {
-    return (
-        <View style={styles.card}>
-            <View style={styles.topRow}>
-                <Text style={styles.title}>Alumnos</Text>
-                <Text style={styles.badge}>{selectedWorkshopId}</Text>
-            </View>
-
-            <TextInput
-                value={search}
-                onChangeText={onSearchChange}
-                placeholder="Buscar alumno..."
-                placeholderTextColor="#8b8b8b"
-                style={styles.searchInput}
-            />
-
-            <Text style={styles.helperText}>Taller activo: {workshopName}</Text>
-
-            <View style={styles.listWrap}>
-                {filteredStudents.length === 0 ? (
-                    <Text style={styles.empty}>No hay alumnos con esos filtros.</Text>
-                ) : (
-                    filteredStudents.map((student) => (
-                        <Pressable
-                            key={student.id}
-                            onPress={() => onToggleEnrollment(student.id)}
-                            style={styles.studentRow}
-                        >
-                            <View style={styles.avatar}>
-                                <Text style={styles.avatarText}>{student.avatar}</Text>
-                            </View>
-
-                            <View style={styles.studentBody}>
-                                <Text style={styles.studentName}>{student.name}</Text>
-                                <Text style={styles.studentCourse}>{student.course}</Text>
-                            </View>
-
-                            <View style={styles.scoreWrap}>
-                                <Text style={styles.score}>{student.level}%</Text>
-                                <Text style={styles.status}>{student.active ? 'Activo' : 'Libre'}</Text>
-                            </View>
-                        </Pressable>
-                    ))
-                )}
-            </View>
+  return (
+    <View style={s.card}>
+      <View style={s.topRow}>
+        <View>
+          <Text variant="kicker">Directorio de Alumnos</Text>
+          <Text variant="title">Estudiantes</Text>
         </View>
-    );
+        <Badge
+          label={`Taller #${selectedWorkshopId}`}
+          tone="accent"
+        />
+      </View>
+
+      <Field
+        placeholder="Buscar por nombre o curso..."
+        value={search}
+        onChangeText={onSearchChange}
+      />
+
+      <View style={s.helperRow}>
+        <Text variant="caption" style={{ color: colors.muted }}>
+          Taller asignado: <Text variant="caption" style={{ fontWeight: '700', color: colors.ink }}>{workshopName}</Text>
+        </Text>
+        <Text variant="caption" style={{ color: colors.accent, fontWeight: '600' }}>
+          Toca un alumno para (des)inscribir
+        </Text>
+      </View>
+
+      <View style={s.listWrap}>
+        {filteredStudents.length === 0 ? (
+          <EmptyState
+            icon="users"
+            title="Sin alumnos"
+            message="No encontramos alumnos que coincidan con los filtros."
+          />
+        ) : (
+          filteredStudents.map((student) => {
+            const enrolled = isEnrolled ? isEnrolled(student.id) : student.active;
+            return (
+              <Pressable
+                key={student.id}
+                onPress={() => onToggleEnrollment(student.id)}
+                style={({ pressed }) => [
+                  s.studentRow,
+                  enrolled && s.studentRowEnrolled,
+                  pressed && { opacity: 0.75 },
+                ]}
+              >
+                <Avatar name={student.name} size={42} />
+
+                <View style={s.studentBody}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text variant="heading" numberOfLines={1}>
+                      {student.name}
+                    </Text>
+                    {enrolled && (
+                      <Feather name="check-circle" size={14} color={colors.accent} />
+                    )}
+                  </View>
+                  <Text variant="caption" style={{ color: colors.muted }}>
+                    {student.course}
+                  </Text>
+                </View>
+
+                <View style={s.scoreWrap}>
+                  <Badge
+                    label={enrolled ? 'Inscrito' : 'Libre'}
+                    tone={enrolled ? 'accent' : 'neutral'}
+                  />
+                  <Text variant="caption" style={{ fontWeight: '700', marginTop: 2 }}>
+                    {student.level}%
+                  </Text>
+                </View>
+
+                {onDeleteStudent && (
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      onDeleteStudent(student.id);
+                    }}
+                    hitSlop={8}
+                    style={s.deleteBtn}
+                  >
+                    <Feather name="trash-2" size={14} color={colors.danger} />
+                  </Pressable>
+                )}
+              </Pressable>
+            );
+          })
+        )}
+      </View>
+    </View>
+  );
 }
 
-const styles = StyleSheet.create({
-    card: {
-        backgroundColor: '#ffffff',
-        borderRadius: 28,
-        padding: 18,
-        shadowColor: '#d0c7bf',
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.12,
-        shadowRadius: 18,
-        elevation: 4,
-        marginBottom: 18,
-    },
-    topRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: '800',
-        color: '#171717',
-        letterSpacing: -0.7,
-    },
-    badge: {
-        minWidth: 34,
-        height: 34,
-        borderRadius: 12,
-        backgroundColor: '#f3f4f6',
-        color: '#171717',
-        textAlign: 'center',
-        textAlignVertical: 'center',
-        fontWeight: '700',
-    },
-    searchInput: {
-        backgroundColor: '#f7f5f3',
-        borderRadius: 16,
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-        color: '#171717',
-        borderWidth: 1,
-        borderColor: '#eeeae5',
-        marginBottom: 10,
-    },
-    helperText: {
-        fontSize: 12,
-        color: '#6b7280',
-        marginBottom: 12,
-    },
-    listWrap: {
-        gap: 10,
-    },
-    studentRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#f7f5f3',
-        borderRadius: 18,
-        padding: 10,
-        borderWidth: 1,
-        borderColor: '#efebe7',
-    },
-    avatar: {
-        width: 42,
-        height: 42,
-        borderRadius: 14,
-        backgroundColor: '#171717',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 12,
-    },
-    avatarText: {
-        color: '#fff',
-        fontWeight: '700',
-        fontSize: 12,
-    },
-    studentBody: {
-        flex: 1,
-    },
-    studentName: {
-        color: '#171717',
-        fontSize: 15,
-        fontWeight: '700',
-    },
-    studentCourse: {
-        color: '#7c7a78',
-        fontSize: 12,
-        marginTop: 2,
-    },
-    scoreWrap: {
-        alignItems: 'flex-end',
-    },
-    score: {
-        color: '#171717',
-        fontWeight: '800',
-        fontSize: 13,
-    },
-    status: {
-        marginTop: 2,
-        color: '#8b5cf6',
-        fontSize: 11,
-        fontWeight: '700',
-    },
-    empty: {
-        color: '#6b7280',
-        textAlign: 'center',
-        paddingVertical: 18,
-    },
+const s = StyleSheet.create({
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: space.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    gap: space.md,
+  },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  helperRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: space.xs,
+  },
+  listWrap: {
+    gap: space.sm,
+  },
+  studentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: space.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    gap: space.md,
+  },
+  studentRowEnrolled: {
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.accent,
+  },
+  studentBody: {
+    flex: 1,
+    gap: 2,
+  },
+  scoreWrap: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  deleteBtn: {
+    padding: 6,
+  },
 });

@@ -1,144 +1,129 @@
-import React from 'react';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Button, colors, Field, radius, space, Text } from '../ui';
 
 type NewItemModalProps = {
-    visible: boolean;
-    mode: 'student' | 'workshop';
-    studentName: string;
-    studentCourse: string;
-    workshopName: string;
-    workshopInstructor: string;
-    onClose: () => void;
-    onStudentNameChange: (value: string) => void;
-    onStudentCourseChange: (value: string) => void;
-    onWorkshopNameChange: (value: string) => void;
-    onWorkshopInstructorChange: (value: string) => void;
-    onSave: () => void;
+  visible: boolean;
+  mode: 'student' | 'workshop';
+  studentName: string;
+  studentCourse: string;
+  workshopName: string;
+  workshopInstructor: string;
+  onClose: () => void;
+  onStudentNameChange: (value: string) => void;
+  onStudentCourseChange: (value: string) => void;
+  onWorkshopNameChange: (value: string) => void;
+  onWorkshopInstructorChange: (value: string) => void;
+  onSave: () => void;
 };
 
 export function NewItemModal({
-    visible,
-    mode,
-    studentName,
-    studentCourse,
-    workshopName,
-    workshopInstructor,
-    onClose,
-    onStudentNameChange,
-    onStudentCourseChange,
-    onWorkshopNameChange,
-    onWorkshopInstructorChange,
-    onSave,
+  visible,
+  mode,
+  studentName,
+  studentCourse,
+  workshopName,
+  workshopInstructor,
+  onClose,
+  onStudentNameChange,
+  onStudentCourseChange,
+  onWorkshopNameChange,
+  onWorkshopInstructorChange,
+  onSave,
 }: NewItemModalProps) {
-    return (
-        <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
-            <View style={styles.overlay}>
-                <View style={styles.modal}>
-                    <Text style={styles.title}>{mode === 'student' ? 'Nuevo alumno' : 'Nuevo taller'}</Text>
+  const isStudent = mode === 'student';
 
-                    {mode === 'student' ? (
-                        <>
-                            <TextInput
-                                placeholder="Nombre del alumno"
-                                value={studentName}
-                                onChangeText={onStudentNameChange}
-                                style={styles.input}
-                            />
-                            <TextInput
-                                placeholder="Curso / especialidad"
-                                value={studentCourse}
-                                onChangeText={onStudentCourseChange}
-                                style={styles.input}
-                            />
-                        </>
-                    ) : (
-                        <>
-                            <TextInput
-                                placeholder="Nombre del taller"
-                                value={workshopName}
-                                onChangeText={onWorkshopNameChange}
-                                style={styles.input}
-                            />
-                            <TextInput
-                                placeholder="Instructor"
-                                value={workshopInstructor}
-                                onChangeText={onWorkshopInstructorChange}
-                                style={styles.input}
-                            />
-                        </>
-                    )}
+  return (
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
+      <Pressable style={s.overlay} onPress={onClose}>
+        <Pressable style={s.modal} onPress={(e) => e.stopPropagation()}>
+          <View style={s.header}>
+            <Text variant="kicker">{isStudent ? 'Registro escolar' : 'Nuevo módulo'}</Text>
+            <Text variant="title" style={{ marginTop: 4 }}>
+              {isStudent ? 'Nuevo alumno' : 'Nuevo taller'}
+            </Text>
+          </View>
 
-                    <View style={styles.actions}>
-                        <Pressable style={styles.cancel} onPress={onClose}>
-                            <Text style={styles.cancelText}>Cancelar</Text>
-                        </Pressable>
-                        <Pressable style={styles.save} onPress={onSave}>
-                            <Text style={styles.saveText}>Guardar</Text>
-                        </Pressable>
-                    </View>
-                </View>
-            </View>
-        </Modal>
-    );
+          <View style={s.form}>
+            {isStudent ? (
+              <>
+                <Field
+                  label="Nombre del alumno"
+                  placeholder="Ej. Sofía Martín"
+                  value={studentName}
+                  onChangeText={onStudentNameChange}
+                />
+                <Field
+                  label="Curso / Especialidad"
+                  placeholder="Ej. Matemáticas Avanzadas"
+                  value={studentCourse}
+                  onChangeText={onStudentCourseChange}
+                />
+              </>
+            ) : (
+              <>
+                <Field
+                  label="Nombre del taller"
+                  placeholder="Ej. Robótica e Inteligencia Artificial"
+                  value={workshopName}
+                  onChangeText={onWorkshopNameChange}
+                />
+                <Field
+                  label="Instructor a cargo"
+                  placeholder="Ej. Dra. Laura Pérez"
+                  value={workshopInstructor}
+                  onChangeText={onWorkshopInstructorChange}
+                />
+              </>
+            )}
+          </View>
+
+          <View style={s.actions}>
+            <Button
+              title="Cancelar"
+              variant="secondary"
+              onPress={onClose}
+              style={{ flex: 1 }}
+            />
+            <Button
+              title="Guardar"
+              variant="primary"
+              onPress={onSave}
+              style={{ flex: 1 }}
+            />
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
 }
 
-const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: 'rgba(10, 10, 10, 0.45)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-    },
-    modal: {
-        width: '100%',
-        backgroundColor: '#fff',
-        borderRadius: 28,
-        padding: 20,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: '800',
-        color: '#171717',
-        marginBottom: 16,
-    },
-    input: {
-        backgroundColor: '#f7f5f3',
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: '#efeae5',
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-        marginBottom: 12,
-        color: '#171717',
-    },
-    actions: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: 8,
-    },
-    cancel: {
-        flex: 1,
-        paddingVertical: 12,
-        borderRadius: 14,
-        backgroundColor: '#f3f2f0',
-        marginRight: 8,
-        alignItems: 'center',
-    },
-    cancelText: {
-        color: '#171717',
-        fontWeight: '700',
-    },
-    save: {
-        flex: 1,
-        paddingVertical: 12,
-        borderRadius: 14,
-        backgroundColor: '#171717',
-        marginLeft: 8,
-        alignItems: 'center',
-    },
-    saveText: {
-        color: '#fff',
-        fontWeight: '700',
-    },
+const s = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: space.lg,
+  },
+  modal: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: space.xl,
+    borderWidth: 1,
+    borderColor: colors.line,
+    gap: space.md,
+  },
+  header: {
+    marginBottom: space.xs,
+  },
+  form: {
+    gap: space.md,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: space.md,
+    marginTop: space.sm,
+  },
 });

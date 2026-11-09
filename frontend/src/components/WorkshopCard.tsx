@@ -1,95 +1,132 @@
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Workshop } from '../types';
+import { Badge, colors, radius, space, Text } from '../ui';
 
 type WorkshopCardProps = {
-    workshop: Workshop;
-    isSelected: boolean;
-    enrolledCount: number;
-    onSelect: (id: number) => void;
+  workshop: Workshop;
+  isSelected: boolean;
+  enrolledCount: number;
+  onSelect: (id: number) => void;
+  onDelete?: (id: number) => void;
 };
 
-export function WorkshopCard({ workshop, isSelected, enrolledCount, onSelect }: WorkshopCardProps) {
-    return (
-        <Pressable
-            onPress={() => onSelect(workshop.id)}
-            style={[styles.card, isSelected && styles.cardSelected, { backgroundColor: workshop.accent }]}
-        >
-            <View style={styles.headerRow}>
-                <Text style={styles.title}>{workshop.name}</Text>
-                <Text style={[styles.tag, isSelected && styles.tagSelected]}>{workshop.capacity - enrolledCount} libres</Text>
-            </View>
+export function WorkshopCard({
+  workshop,
+  isSelected,
+  enrolledCount,
+  onSelect,
+  onDelete,
+}: WorkshopCardProps) {
+  const freeSlots = Math.max(0, workshop.capacity - enrolledCount);
+  const tone = freeSlots === 0 ? 'danger' : freeSlots <= 3 ? 'warn' : 'success';
 
-            <Text style={styles.instructor}>{workshop.instructor}</Text>
+  return (
+    <Pressable
+      onPress={() => onSelect(workshop.id)}
+      style={({ pressed }) => [
+        s.card,
+        {
+          borderColor: isSelected ? colors.accent : colors.line,
+          backgroundColor: isSelected ? colors.surfaceAlt : colors.surface,
+        },
+        pressed && { opacity: 0.8 },
+      ]}
+    >
+      <View style={s.topRow}>
+        <View style={s.titleWrap}>
+          <View style={[s.dot, { backgroundColor: workshop.color }]} />
+          <Text variant="heading" numberOfLines={1} style={{ flex: 1 }}>
+            {workshop.name}
+          </Text>
+        </View>
+        <Badge
+          label={`${freeSlots} libres`}
+          tone={tone}
+        />
+      </View>
 
-            <View style={styles.footerRow}>
-                <View style={[styles.dot, { backgroundColor: workshop.color }]} />
-                <Text style={styles.count}>{enrolledCount}/{workshop.capacity}</Text>
-            </View>
-        </Pressable>
-    );
+      <Text variant="caption" style={{ color: colors.muted }}>
+        {workshop.instructor}
+      </Text>
+
+      <View style={s.footer}>
+        <View style={s.capacityBarBg}>
+          <View
+            style={[
+              s.capacityBarFill,
+              {
+                width: `${Math.min(100, (enrolledCount / workshop.capacity) * 100)}%`,
+                backgroundColor: workshop.color,
+              },
+            ]}
+          />
+        </View>
+
+        <View style={s.bottomMeta}>
+          <Text variant="caption" style={{ fontWeight: '600', color: colors.ink }}>
+            {enrolledCount}/{workshop.capacity} inscritos
+          </Text>
+          {onDelete && (
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation();
+                onDelete(workshop.id);
+              }}
+              hitSlop={8}
+            >
+              <Feather name="trash-2" size={14} color={colors.danger} />
+            </Pressable>
+          )}
+        </View>
+      </View>
+    </Pressable>
+  );
 }
 
-const styles = StyleSheet.create({
-    card: {
-        width: 210,
-        borderRadius: 24,
-        padding: 16,
-        marginRight: 12,
-        borderWidth: 1,
-        borderColor: '#f0ece8',
-        shadowColor: '#d7c7bb',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.09,
-        shadowRadius: 16,
-        elevation: 2,
-    },
-    cardSelected: {
-        borderColor: '#171717',
-        shadowOpacity: 0.14,
-    },
-    headerRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    title: {
-        fontSize: 18,
-        fontWeight: '800',
-        color: '#171717',
-    },
-    tag: {
-        backgroundColor: '#ffffff',
-        paddingHorizontal: 8,
-        paddingVertical: 5,
-        borderRadius: 999,
-        fontSize: 10,
-        fontWeight: '700',
-        color: '#171717',
-    },
-    tagSelected: {
-        backgroundColor: '#171717',
-        color: '#fff',
-    },
-    instructor: {
-        color: '#4b5563',
-        fontSize: 12,
-        marginBottom: 16,
-    },
-    footerRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    dot: {
-        width: 12,
-        height: 12,
-        borderRadius: 999,
-    },
-    count: {
-        fontWeight: '700',
-        color: '#171717',
-        fontSize: 12,
-    },
+const s = StyleSheet.create({
+  card: {
+    width: 220,
+    borderRadius: radius.lg,
+    padding: space.lg,
+    borderWidth: 1.5,
+    gap: space.sm,
+    justifyContent: 'space-between',
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: space.xs,
+  },
+  titleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+    flex: 1,
+  },
+  dot: {
+    width: 10,
+    height: 10,
+    borderRadius: radius.pill,
+  },
+  footer: {
+    gap: 6,
+    marginTop: space.xs,
+  },
+  capacityBarBg: {
+    height: 6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.line,
+    overflow: 'hidden',
+  },
+  capacityBarFill: {
+    height: '100%',
+    borderRadius: radius.pill,
+  },
+  bottomMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
 });

@@ -1,727 +1,696 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
+import { EnrollmentMap, Student, Workshop } from './src/types';
+import { initialEnrollments, initialStudents, initialWorkshops } from './src/data/mockData';
+import { ApiService } from './src/api/client';
+import {
+  FilterPill,
+  NewItemModal,
+  StatsPanel,
+  StudentOverviewCard,
+  WorkshopCard,
+} from './src/components';
+import {
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  ChipRow,
+  colors,
+  CustomSwitch,
+  Divider,
+  EmptyState,
+  Field,
+  gutter,
+  IconButton,
+  ListRow,
+  radius,
+  Screen,
+  ScreenHeader,
+  Section,
+  space,
+  TabBar,
+  TabKey,
+  Text,
+  ThemeProvider,
+  toast,
+  Toaster,
+  useTheme,
+} from './src/ui';
 
-const workshopCards = [
-  { id: 1, title: 'Física', instructor: 'Dr. Emily Carter', color: '#dff7e8', dot: '#f59e0b', free: 14 },
-  { id: 2, title: 'Química', instructor: 'Dr. Carla Díaz', color: '#dfeafc', dot: '#60a5fa', free: 3 },
-];
+function MainApp() {
+  const { isDark, toggleTheme } = useTheme();
 
-const leaderboard = [
-  { name: 'Ana', score: 92, color: '#f59e0b', initial: 'AL' },
-  { name: 'Daniel', score: 81, color: '#f3f4f6', initial: 'DG' },
-  { name: 'Clara', score: 76, color: '#f3f4f6', initial: 'CV' },
-];
+  // State
+  const [activeTab, setActiveTab] = useState<TabKey>('aula');
+  const [students, setStudents] = useState<Student[]>(initialStudents);
+  const [workshops, setWorkshops] = useState<Workshop[]>(initialWorkshops);
+  const [enrollments, setEnrollments] = useState<EnrollmentMap>(initialEnrollments);
+  const [selectedWorkshopId, setSelectedWorkshopId] = useState<number>(1);
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('todos');
+  const [refreshing, setRefreshing] = useState(false);
 
-export default function App() {
+  // Modal State
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalMode, setModalMode] = useState<'student' | 'workshop'>('student');
+  const [newStudentName, setNewStudentName] = useState('');
+  const [newStudentCourse, setNewStudentCourse] = useState('');
+  const [newWorkshopName, setNewWorkshopName] = useState('');
+  const [newWorkshopInstructor, setNewWorkshopInstructor] = useState('');
+
+  // Fetch from backend
+  const loadData = async () => {
+    try {
+      const [fetchedStudents, fetchedWorkshops] = await Promise.all([
+        ApiService.getAlumnos(),
+        ApiService.getTalleres(),
+      ]);
+      if (fetchedStudents.length > 0) setStudents(fetchedStudents);
+      if (fetchedWorkshops.length > 0) setWorkshops(fetchedWorkshops);
+    } catch {
+      // Fallback already handled in ApiService
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+    toast.success('Datos actualizados');
+  };
+
+  const selectedWorkshop = useMemo(
+    () => workshops.find((w) => w.id === selectedWorkshopId) ?? workshops[0] ?? {
+      id: 1,
+      name: 'General',
+      instructor: 'Docente',
+      color: '#E4531D',
+      accent: '#FADCD2',
+      capacity: 20,
+    },
+    [workshops, selectedWorkshopId]
+  );
+
+  // Workshop enrollment counts
+  const workshopEnrollmentCounts = useMemo(() => {
+    const counts: Record<number, number> = {};
+    workshops.forEach((w) => {
+      counts[w.id] = (enrollments[w.id] ?? []).length;
+    });
+    return counts;
+  }, [workshops, enrollments]);
+
+  // Statistics
+  const stats = useMemo(() => {
+    const total = students.length;
+    const enrolledSet = new Set<number>();
+    Object.values(enrollments).forEach((arr) => arr.forEach((id) => enrolledSet.add(id)));
+    const active = enrolledSet.size;
+
+    let minW = workshops[0]?.name ?? 'Ninguno';
+    let maxW = workshops[0]?.name ?? 'Ninguno';
+    let minCount = Infinity;
+    let maxCount = -1;
+
+    workshops.forEach((w) => {
+      const c = (enrollments[w.id] ?? []).length;
+      if (c < minCount) {
+        minCount = c;
+        minW = w.name;
+      }
+      if (c > maxCount) {
+        maxCount = c;
+        maxW = w.name;
+      }
+    });
+
+    return {
+      total,
+      active,
+      minW: minCount === Infinity ? 'Ninguno' : `${minW} (${minCount})`,
+      maxW: maxCount === -1 ? 'Ninguno' : `${maxW} (${maxCount})`,
+    };
+  }, [students, workshops, enrollments]);
+
+  // Toggle student enrollment in selected workshop
+  const handleToggleEnrollment = (studentId: number) => {
+    const currentList = enrollments[selectedWorkshopId] ?? [];
+    const isEnrolled = currentList.includes(studentId);
+    let nextList: number[];
+
+    if (isEnrolled) {
+      nextList = currentList.filter((id) => id !== studentId);
+      toast.info('Alumno desinscrito del taller');
+    } else {
+      if (currentList.length >= selectedWorkshop.capacity) {
+        toast.warn('Capacidad máxima del taller alcanzada');
+        return;
+      }
+      nextList = [...currentList, studentId];
+      toast.success('Alumno inscrito en el taller');
+    }
+
+    setEnrollments((prev) => ({
+      ...prev,
+      [selectedWorkshopId]: nextList,
+    }));
+  };
+
+  // Add items
+  const handleOpenStudentModal = () => {
+    setModalMode('student');
+    setNewStudentName('');
+    setNewStudentCourse('');
+    setModalVisible(true);
+  };
+
+  const handleOpenWorkshopModal = () => {
+    setModalMode('workshop');
+    setNewWorkshopName('');
+    setNewWorkshopInstructor('');
+    setModalVisible(true);
+  };
+
+  const handleSaveModal = async () => {
+    if (modalMode === 'student') {
+      if (!newStudentName.trim()) {
+        toast.error('Ingresa el nombre del alumno');
+        return;
+      }
+      const created = await ApiService.createAlumno(newStudentName.trim(), [selectedWorkshopId]);
+      if (newStudentCourse.trim()) {
+        created.course = newStudentCourse.trim();
+      }
+      setStudents((prev) => [created, ...prev]);
+      setEnrollments((prev) => ({
+        ...prev,
+        [selectedWorkshopId]: [...(prev[selectedWorkshopId] ?? []), created.id],
+      }));
+      setModalVisible(false);
+      toast.success(`Alumno ${created.name} registrado`);
+    } else {
+      if (!newWorkshopName.trim()) {
+        toast.error('Ingresa el nombre del taller');
+        return;
+      }
+      const created = await ApiService.createTaller(newWorkshopName.trim());
+      if (newWorkshopInstructor.trim()) {
+        created.instructor = newWorkshopInstructor.trim();
+      }
+      setWorkshops((prev) => [...prev, created]);
+      setSelectedWorkshopId(created.id);
+      setModalVisible(false);
+      toast.success(`Taller ${created.name} creado`);
+    }
+  };
+
+  const handleDeleteStudent = async (id: number) => {
+    await ApiService.deleteAlumno(id);
+    setStudents((prev) => prev.filter((s) => s.id !== id));
+    setEnrollments((prev) => {
+      const next: EnrollmentMap = {};
+      Object.entries(prev).forEach(([wId, arr]) => {
+        next[Number(wId)] = arr.filter((studentId) => studentId !== id);
+      });
+      return next;
+    });
+    toast.info('Alumno eliminado');
+  };
+
+  const handleDeleteWorkshop = async (id: number) => {
+    await ApiService.deleteTaller(id);
+    setWorkshops((prev) => prev.filter((w) => w.id !== id));
+    if (selectedWorkshopId === id) {
+      setSelectedWorkshopId(workshops.find((w) => w.id !== id)?.id ?? 1);
+    }
+    toast.info('Taller eliminado');
+  };
+
+  // Filter students
+  const filteredStudents = useMemo(() => {
+    return students.filter((s) => {
+      const matchesSearch =
+        s.name.toLowerCase().includes(search.toLowerCase()) ||
+        s.course.toLowerCase().includes(search.toLowerCase());
+      if (!matchesSearch) return false;
+
+      if (categoryFilter === 'todos') return true;
+      if (categoryFilter === 'inscritos') {
+        return (enrollments[selectedWorkshopId] ?? []).includes(s.id);
+      }
+      if (categoryFilter === 'libres') {
+        return !(enrollments[selectedWorkshopId] ?? []).includes(s.id);
+      }
+      return s.course.toLowerCase() === categoryFilter.toLowerCase();
+    });
+  }, [students, search, categoryFilter, enrollments, selectedWorkshopId]);
+
+  // Categories for filter chip row
+  const filterOptions = useMemo(() => {
+    const list = [
+      { key: 'todos', label: 'Todos', count: students.length },
+      { key: 'inscritos', label: 'Inscritos en taller', count: (enrollments[selectedWorkshopId] ?? []).length },
+      { key: 'libres', label: 'Libres' },
+    ];
+    const courses = Array.from(new Set(students.map((s) => s.course)));
+    courses.forEach((c) => list.push({ key: c.toLowerCase(), label: c }));
+    return list;
+  }, [students, enrollments, selectedWorkshopId]);
+
   return (
-    <>
-      <StatusBar style="light" />
-      <View style={styles.background} />
+    <Screen edges={['top']}>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
 
-      <ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
-        <View style={styles.deviceFrame}>
-          <View style={styles.phoneShellLight}>
-            <View style={styles.statusRowLight}>
-              <Text style={styles.statusTextLight}>9:36</Text>
-              <View style={styles.statusIconsLight}>
-                <Text style={styles.dotLight}>◉</Text>
-                <Text style={styles.dotLight}>◉</Text>
-                <Text style={styles.dotLight}>◉</Text>
+      {/* Screen 1: AULA (Overview & Dashboard) */}
+      {activeTab === 'aula' && (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={s.scrollContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
+        >
+          <ScreenHeader
+            kicker="Centro Educativo"
+            title="Aula Virtual"
+            right={
+              <View style={s.headerActions}>
+                <Button title="+ Alumno" size="sm" variant="primary" onPress={handleOpenStudentModal} />
+                <Button title="+ Taller" size="sm" variant="secondary" onPress={handleOpenWorkshopModal} />
               </View>
-            </View>
+            }
+          />
 
-            <View style={styles.lightPanel}>
-              <View style={styles.lightHeader}>
+          {/* Featured Next Lesson Card */}
+          <View style={{ paddingHorizontal: gutter }}>
+            <Card tone="accent" style={s.lessonCard}>
+              <View style={s.lessonTop}>
                 <View>
-                  <Text style={styles.dayLabel}>Fri</Text>
-                  <Text style={styles.dayValue}>15</Text>
+                  <Text variant="kicker">Siguiente sesión activa</Text>
+                  <Text variant="title" style={{ marginTop: 2 }}>{selectedWorkshop.name}</Text>
+                  <Text variant="caption" style={{ color: colors.muted, marginTop: 2 }}>
+                    Instructor: {selectedWorkshop.instructor}
+                  </Text>
                 </View>
-                <View style={styles.notificationBadge}>
-                  <Text style={styles.notificationText}>◌</Text>
-                </View>
-              </View>
-
-              <View style={styles.cardLesson}>
-                <Text style={styles.lessonLabel}>The next lesson</Text>
-                <View style={styles.lessonHeader}>
-                  <Text style={styles.subjectTitle}>Matemáticas</Text>
-                  <View style={styles.timerRing}>
-                    <Text style={styles.timerText}>4 min</Text>
-                  </View>
-                </View>
-                <Text style={styles.timeLabel}>TIME:</Text>
-                <Text style={styles.timeValue}>10:00 - 10:45</Text>
-                <View style={styles.ctaWrap}>
-                  <Pressable style={styles.primaryButton}>
-                    <Text style={styles.primaryButtonText}>Go</Text>
-                  </Pressable>
+                <View style={s.timerRing}>
+                  <Text variant="label" style={{ color: colors.accent, fontWeight: '800' }}>4 min</Text>
                 </View>
               </View>
 
-              <View style={styles.scheduleList}>
-                {[
-                  { time: '10:00 - 10:45', title: 'Physics', teacher: 'Dr. Emily Carter', duration: '15 min' },
-                  { time: '11:00 - 11:45', title: 'Chemistry', teacher: 'Dr. Alex Thompson', duration: '15 min' },
-                ].map((item) => (
-                  <View key={item.title} style={styles.scheduleItem}>
-                    <Text style={styles.scheduleTime}>{item.time}</Text>
-                    <View style={styles.scheduleMeta}>
-                      <Text style={styles.scheduleTitle}>{item.title}</Text>
-                      <Text style={styles.scheduleTeacher}>{item.teacher}</Text>
-                    </View>
-                    <Text style={styles.scheduleDuration}>{item.duration}</Text>
-                  </View>
-                ))}
+              <View style={s.lessonMetaRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Feather name="clock" size={14} color={colors.muted} />
+                  <Text variant="caption">10:00 - 10:45</Text>
+                </View>
+                <Badge
+                  label={`${selectedWorkshop.capacity - (workshopEnrollmentCounts[selectedWorkshop.id] ?? 0)} plazas libres`}
+                  tone="accent"
+                />
               </View>
 
-              <View style={styles.navBar}>
-                {['◧', '◫', '◩', '◭'].map((icon, index) => (
-                  <Pressable key={icon + index} style={[styles.navIcon, index === 0 && styles.navIconActive]}>
-                    <Text style={[styles.navText, index === 0 && styles.navTextActive]}>{icon}</Text>
-                  </Pressable>
-                ))}
+              {/* Progress bar */}
+              <View style={s.progressBarTrack}>
+                <View
+                  style={[
+                    s.progressBarFill,
+                    {
+                      width: `${Math.min(100, ((workshopEnrollmentCounts[selectedWorkshop.id] ?? 0) / selectedWorkshop.capacity) * 100)}%`,
+                    },
+                  ]}
+                />
               </View>
-            </View>
+            </Card>
           </View>
 
-          <View style={styles.phoneShellDark}>
-            <View style={styles.statusRowDark}>
-              <Text style={styles.statusTextDark}>9:36</Text>
-              <View style={styles.statusIconsDark}>
-                <Text style={styles.dotDark}>◉</Text>
-                <Text style={styles.dotDark}>◉</Text>
-                <Text style={styles.dotDark}>◉</Text>
-              </View>
-            </View>
-
-            <View style={styles.darkPanel}>
-              <View style={styles.darkHeader}>
-                <Text style={styles.backText}>{'<'}</Text>
-                <Text style={styles.courseTitle}>Training course</Text>
-                <View style={styles.iconBox}>
-                  <Text style={styles.iconText}>◫</Text>
-                </View>
-              </View>
-
-              <View style={styles.courseCard}>
-                <View style={styles.courseHeaderRow}>
-                  <Text style={styles.courseName}>Matemáticas</Text>
-                  <Text style={styles.courseBadge}>Course</Text>
-                </View>
-                <Text style={styles.instructorText}>Dr. Ana Flores</Text>
-                <View style={styles.progressTrack}>
-                  <View style={styles.progressFill} />
-                </View>
-                <Text style={styles.progressText}>◔ 12 day</Text>
-              </View>
-
-              <Text style={styles.leaderboardTitle}>Leaderboard</Text>
-
-              <View style={styles.barsRow}>
-                {leaderboard.map((person, index) => (
-                  <View key={person.name} style={styles.barCol}>
-                    <View style={styles.barSlot}>
-                      <View
-                        style={[
-                          styles.bar,
-                          {
-                            height: 100 + index * 20,
-                            backgroundColor: person.color === '#f59e0b' ? '#f59e0b' : '#f3f4f6',
-                          },
-                        ]}
-                      />
-                    </View>
-                    <Text style={styles.barScore}>{person.score}</Text>
-                  </View>
-                ))}
-              </View>
-
-              <View style={styles.peopleRow}>
-                {leaderboard.map((person, index) => (
-                  <View key={`${person.name}-meta`} style={styles.personMeta}>
-                    <Text style={styles.personRank}>#{index + 1}</Text>
-                    <View style={[styles.avatar, person.color === '#f59e0b' && styles.avatarActive]}>
-                      <Text style={styles.avatarText}>{person.initial}</Text>
-                    </View>
-                    <Text style={styles.personName}>{person.name}</Text>
-                  </View>
-                ))}
-              </View>
-
-              <View style={styles.statsRow}>
-                <View style={styles.statBox}>
-                  <Text style={styles.statNumber}>8</Text>
-                  <Text style={styles.statLabel}>Total lesson</Text>
-                </View>
-                <View style={styles.statBox}>
-                  <Text style={styles.statNumber}>5</Text>
-                  <Text style={styles.statLabel}>Completed</Text>
-                </View>
-                <View style={styles.statBox}>
-                  <Text style={styles.statNumber}>4</Text>
-                  <Text style={styles.statLabel}>In progress</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.managementCard}>
-          <View style={styles.managementHeader}>
-            <Text style={styles.managementTitle}>Gestión de talleres</Text>
-            <View style={styles.actionRow}>
-              <Pressable style={styles.primaryAction}>
-                <Text style={styles.primaryActionText}>+ Alumno</Text>
+          {/* Talleres Carousel */}
+          <Section
+            title="Talleres del Curso"
+            action={
+              <Pressable onPress={() => setActiveTab('talleres')}>
+                <Text variant="caption" style={{ color: colors.accent, fontWeight: '700' }}>
+                  Ver todos ({workshops.length})
+                </Text>
               </Pressable>
-              <Pressable style={styles.secondaryAction}>
-                <Text style={styles.secondaryActionText}>+ Taller</Text>
-              </Pressable>
-            </View>
-          </View>
+            }
+          >
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: gutter, gap: space.md }}
+            >
+              {workshops.map((w) => (
+                <WorkshopCard
+                  key={w.id}
+                  workshop={w}
+                  isSelected={w.id === selectedWorkshopId}
+                  enrolledCount={workshopEnrollmentCounts[w.id] ?? 0}
+                  onSelect={(id) => {
+                    setSelectedWorkshopId(id);
+                    toast.info(`Taller seleccionado: ${w.name}`);
+                  }}
+                  onDelete={handleDeleteWorkshop}
+                />
+              ))}
+            </ScrollView>
+          </Section>
 
-          <View style={styles.workshopGrid}>
-            {workshopCards.map((item) => (
-              <View key={item.id} style={[styles.workshopCard, { backgroundColor: item.color }]}>
-                <View style={styles.workshopHead}>
-                  <Text style={styles.workshopTitle}>{item.title}</Text>
-                  <Text style={styles.workshopBadge}>{item.free} libres</Text>
+          {/* Quick Schedule */}
+          <View style={{ paddingHorizontal: gutter, gap: space.sm }}>
+            <Text variant="heading">Horario del Día</Text>
+            {[
+              { time: '10:00 - 10:45', title: selectedWorkshop.name, teacher: selectedWorkshop.instructor, dur: '45 min' },
+              { time: '11:00 - 11:45', title: 'Matemáticas y Análisis', teacher: 'Dr. Marco Lee', dur: '45 min' },
+              { time: '12:00 - 12:45', title: 'Laboratorio de Pruebas', teacher: 'Dra. Carla Díaz', dur: '45 min' },
+            ].map((item, idx) => (
+              <Card key={idx} tone="soft" style={s.scheduleRow}>
+                <View style={s.timeBadge}>
+                  <Text variant="caption" style={{ fontWeight: '700', color: colors.ink }}>{item.time}</Text>
                 </View>
-                <Text style={styles.workshopTeacher}>{item.instructor}</Text>
-                <View style={styles.workshopFooter}>
-                  <View style={[styles.workshopDot, { backgroundColor: item.dot }]} />
-                  <Text style={styles.workshopFooterText}>{item.free}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text variant="label">{item.title}</Text>
+                  <Text variant="caption" style={{ color: colors.muted }}>{item.teacher}</Text>
                 </View>
-              </View>
+                <Badge label={item.dur} tone="neutral" />
+              </Card>
             ))}
           </View>
-        </View>
-      </ScrollView>
-    </>
+        </ScrollView>
+      )}
+
+      {/* Screen 2: ALUMNOS */}
+      {activeTab === 'alumnos' && (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={s.scrollContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
+        >
+          <ScreenHeader
+            kicker="Directorio"
+            title="Alumnos"
+            right={
+              <Button title="+ Alumno" size="sm" variant="primary" onPress={handleOpenStudentModal} />
+            }
+          />
+
+          {/* Filter Chips */}
+          <ChipRow
+            options={filterOptions}
+            value={categoryFilter}
+            onChange={(val) => setCategoryFilter(val)}
+          />
+
+          <View style={{ paddingHorizontal: gutter }}>
+            <StudentOverviewCard
+              search={search}
+              onSearchChange={setSearch}
+              filteredStudents={filteredStudents}
+              selectedWorkshopId={selectedWorkshopId}
+              workshopName={selectedWorkshop.name}
+              onToggleEnrollment={handleToggleEnrollment}
+              onDeleteStudent={handleDeleteStudent}
+              isEnrolled={(id) => (enrollments[selectedWorkshopId] ?? []).includes(id)}
+            />
+          </View>
+        </ScrollView>
+      )}
+
+      {/* Screen 3: TALLERES */}
+      {activeTab === 'talleres' && (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={s.scrollContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
+        >
+          <ScreenHeader
+            kicker="Plan de Estudios"
+            title="Talleres"
+            right={
+              <Button title="+ Taller" size="sm" variant="primary" onPress={handleOpenWorkshopModal} />
+            }
+          />
+
+          <View style={{ paddingHorizontal: gutter, gap: space.md }}>
+            <Text variant="body" style={{ color: colors.muted }}>
+              Selecciona un taller para revisar su información y la lista de estudiantes inscritos.
+            </Text>
+
+            <View style={s.workshopGrid}>
+              {workshops.map((w) => (
+                <WorkshopCard
+                  key={w.id}
+                  workshop={w}
+                  isSelected={w.id === selectedWorkshopId}
+                  enrolledCount={workshopEnrollmentCounts[w.id] ?? 0}
+                  onSelect={(id) => setSelectedWorkshopId(id)}
+                  onDelete={handleDeleteWorkshop}
+                />
+              ))}
+            </View>
+
+            {/* Enrolled students in selected workshop */}
+            <Card tone="soft" style={{ gap: space.md, marginTop: space.sm }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View>
+                  <Text variant="kicker">Inscripciones Activas</Text>
+                  <Text variant="heading">{selectedWorkshop.name}</Text>
+                </View>
+                <Badge
+                  label={`${(enrollments[selectedWorkshopId] ?? []).length} alumnos`}
+                  tone="accent"
+                />
+              </View>
+
+              <Divider />
+
+              {(enrollments[selectedWorkshopId] ?? []).length === 0 ? (
+                <EmptyState
+                  icon="user-plus"
+                  title="Sin alumnos inscritos"
+                  message="Inscribe alumnos desde la pestaña de Alumnos."
+                  actionLabel="Ir a Alumnos"
+                  onAction={() => setActiveTab('alumnos')}
+                />
+              ) : (
+                students
+                  .filter((s) => (enrollments[selectedWorkshopId] ?? []).includes(s.id))
+                  .map((student) => (
+                    <ListRow
+                      key={student.id}
+                      title={student.name}
+                      subtitle={student.course}
+                      left={<Avatar name={student.name} size={36} />}
+                      right={
+                        <Button
+                          title="Quitar"
+                          size="sm"
+                          variant="ghost"
+                          onPress={() => handleToggleEnrollment(student.id)}
+                        />
+                      }
+                    />
+                  ))
+              )}
+            </Card>
+          </View>
+        </ScrollView>
+      )}
+
+      {/* Screen 4: MÉTRICAS Y AJUSTES */}
+      {activeTab === 'metricas' && (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={s.scrollContent}
+        >
+          <ScreenHeader
+            kicker="Panel Analítico"
+            title="Métricas"
+          />
+
+          <View style={{ paddingHorizontal: gutter, gap: space.lg }}>
+            <StatsPanel
+              totalStudents={stats.total}
+              activeStudents={stats.active}
+              lessCrowdedWorkshop={stats.minW}
+              mostCrowdedWorkshop={stats.maxW}
+            />
+
+            {/* Leaderboard */}
+            <Card tone="soft" style={{ gap: space.md }}>
+              <Text variant="kicker">Rendimiento Destacado</Text>
+              <Text variant="heading">Mejores Puntuaciones</Text>
+
+              {[...students]
+                .sort((a, b) => b.level - a.level)
+                .slice(0, 5)
+                .map((student, idx) => (
+                  <View key={student.id} style={s.leaderboardRow}>
+                    <Text variant="label" style={{ width: 24, fontWeight: '800', color: colors.accent }}>
+                      #{idx + 1}
+                    </Text>
+                    <Avatar name={student.name} size={34} />
+                    <View style={{ flex: 1 }}>
+                      <Text variant="label">{student.name}</Text>
+                      <Text variant="caption">{student.course}</Text>
+                    </View>
+                    <Badge label={`${student.level} pts`} tone={idx === 0 ? 'accent' : 'neutral'} />
+                  </View>
+                ))}
+            </Card>
+
+            {/* Settings & Appearance */}
+            <Card tone="soft" style={{ gap: space.md }}>
+              <Text variant="kicker">Configuración</Text>
+              <Text variant="heading">Apariencia y Sistema</Text>
+
+              <View style={s.settingRow}>
+                <View style={{ flex: 1 }}>
+                  <Text variant="label">Modo Oscuro</Text>
+                  <Text variant="caption" style={{ color: colors.muted }}>
+                    Alterna entre tema claro y tema oscuro (estilo X/Twitter)
+                  </Text>
+                </View>
+                <CustomSwitch
+                  value={isDark}
+                  onValueChange={toggleTheme}
+                  accessibilityLabel="Modo oscuro"
+                />
+              </View>
+
+              <Divider />
+
+              <View style={s.settingRow}>
+                <View style={{ flex: 1 }}>
+                  <Text variant="label">Servidor Backend</Text>
+                  <Text variant="caption" style={{ color: colors.muted }}>
+                    http://localhost:3001 (NestJS + TypeORM)
+                  </Text>
+                </View>
+                <Button title="Probar" size="sm" variant="secondary" onPress={onRefresh} />
+              </View>
+            </Card>
+          </View>
+        </ScrollView>
+      )}
+
+      {/* Floating Bottom Tab Bar */}
+      <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+
+      {/* Modal for adding Student or Workshop */}
+      <NewItemModal
+        visible={modalVisible}
+        mode={modalMode}
+        studentName={newStudentName}
+        studentCourse={newStudentCourse}
+        workshopName={newWorkshopName}
+        workshopInstructor={newWorkshopInstructor}
+        onClose={() => setModalVisible(false)}
+        onStudentNameChange={setNewStudentName}
+        onStudentCourseChange={setNewStudentCourse}
+        onWorkshopNameChange={setNewWorkshopName}
+        onWorkshopInstructorChange={setNewWorkshopInstructor}
+        onSave={handleSaveModal}
+      />
+
+      <Toaster />
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  background: {
-    position: 'absolute',
-    inset: 0,
-    backgroundColor: '#0f1113',
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <MainApp />
+      </ThemeProvider>
+    </SafeAreaProvider>
+  );
+}
+
+const s = StyleSheet.create({
+  scrollContent: {
+    paddingBottom: space.xxxl,
+    gap: space.lg,
   },
-  page: {
-    paddingTop: 30,
-    paddingBottom: 40,
-    paddingHorizontal: 18,
-    alignItems: 'center',
-  },
-  deviceFrame: {
-    width: '100%',
-    maxWidth: 780,
-    backgroundColor: '#171a1d',
-    borderRadius: 42,
-    paddingVertical: 18,
-    paddingHorizontal: 18,
+  headerActions: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    gap: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.22,
-    shadowRadius: 22,
-    elevation: 10,
+    gap: space.sm,
   },
-  phoneShellLight: {
-    width: 330,
-    height: 670,
-    backgroundColor: '#1d1d1d',
-    borderRadius: 36,
-    paddingTop: 12,
-    paddingHorizontal: 10,
-    borderWidth: 2,
-    borderColor: '#2a2d31',
+  lessonCard: {
+    gap: space.md,
   },
-  phoneShellDark: {
-    width: 330,
-    height: 670,
-    backgroundColor: '#1d1d1d',
-    borderRadius: 36,
-    paddingTop: 12,
-    paddingHorizontal: 10,
-    borderWidth: 2,
-    borderColor: '#2a2d31',
-  },
-  statusRowLight: {
+  lessonTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    marginBottom: 12,
-  },
-  statusRowDark: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    marginBottom: 12,
-  },
-  statusTextLight: {
-    color: '#171717',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  statusTextDark: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  statusIconsLight: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  statusIconsDark: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  dotLight: {
-    color: '#171717',
-    fontSize: 11,
-  },
-  dotDark: {
-    color: '#fff',
-    fontSize: 11,
-  },
-  lightPanel: {
-    flex: 1,
-    backgroundColor: '#f2f0ec',
-    borderRadius: 30,
-    padding: 18,
-  },
-  lightHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  dayLabel: {
-    color: '#6b7280',
-    fontSize: 10,
-  },
-  dayValue: {
-    color: '#171717',
-    fontSize: 28,
-    fontWeight: '800',
-  },
-  notificationBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: '#ffffff',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  notificationText: {
-    color: '#171717',
-    fontSize: 18,
-  },
-  cardLesson: {
-    backgroundColor: '#ffffff',
-    borderRadius: 22,
-    padding: 15,
-    marginBottom: 16,
-  },
-  lessonLabel: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginBottom: 10,
-  },
-  lessonHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 18,
-  },
-  subjectTitle: {
-    color: '#171717',
-    fontSize: 31,
-    fontWeight: '800',
-    letterSpacing: -1,
+    alignItems: 'flex-start',
   },
   timerRing: {
-    width: 62,
-    height: 62,
-    borderRadius: 999,
-    borderWidth: 4,
-    borderColor: '#f5ae42',
+    width: 58,
+    height: 58,
+    borderRadius: radius.pill,
+    borderWidth: 3,
+    borderColor: colors.accent,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: colors.surface,
   },
-  timerText: {
-    color: '#171717',
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  timeLabel: {
-    color: '#7a7a7a',
-    fontSize: 10,
-    letterSpacing: 1,
-    marginBottom: 6,
-  },
-  timeValue: {
-    color: '#171717',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  ctaWrap: {
-    marginTop: 16,
-    alignItems: 'flex-end',
-  },
-  primaryButton: {
-    width: 52,
-    height: 36,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f59e0b',
-  },
-  primaryButtonText: {
-    color: '#fff',
-    fontWeight: '800',
-  },
-  scheduleList: {
-    gap: 10,
-  },
-  scheduleItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0efec',
-    borderRadius: 14,
-    padding: 10,
-  },
-  scheduleTime: {
-    width: 78,
-    color: '#171717',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  scheduleMeta: {
-    flex: 1,
-  },
-  scheduleTitle: {
-    color: '#171717',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  scheduleTeacher: {
-    color: '#6b7280',
-    fontSize: 10,
-    marginTop: 2,
-  },
-  scheduleDuration: {
-    color: '#171717',
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  navBar: {
-    marginTop: 18,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 12,
-    paddingHorizontal: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e1dc',
-  },
-  navIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: '#f2f0ed',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  navIconActive: {
-    backgroundColor: '#f59e0b',
-  },
-  navText: {
-    color: '#171717',
-    fontSize: 16,
-  },
-  navTextActive: {
-    color: '#fff',
-  },
-  darkPanel: {
-    flex: 1,
-    backgroundColor: '#1d1e1e',
-    borderRadius: 30,
-    padding: 18,
-  },
-  darkHeader: {
+  lessonMetaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
   },
-  backText: {
-    color: '#fff',
-    fontSize: 28,
-    fontWeight: '500',
+  progressBarTrack: {
+    height: 8,
+    borderRadius: radius.pill,
+    backgroundColor: colors.line,
+    overflow: 'hidden',
   },
-  courseTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: colors.accent,
+    borderRadius: radius.pill,
   },
-  iconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
-    backgroundColor: '#2a2a2a',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  iconText: {
-    color: '#fff',
-    fontSize: 15,
-  },
-  courseCard: {
-    backgroundColor: '#2a2a2a',
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 18,
-  },
-  courseHeaderRow: {
+  scheduleRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    gap: space.md,
+    padding: space.md,
   },
-  courseName: {
-    color: '#fff',
-    fontSize: 29,
-    fontWeight: '800',
-    letterSpacing: -1,
-  },
-  courseBadge: {
-    backgroundColor: '#f59e0b',
-    color: '#171717',
-    borderRadius: 999,
+  timeBadge: {
     paddingHorizontal: 10,
     paddingVertical: 6,
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  instructorText: {
-    color: '#d8d8d8',
-    fontSize: 12,
-    marginBottom: 12,
-  },
-  progressTrack: {
-    height: 12,
-    backgroundColor: '#3a3a3a',
-    borderRadius: 999,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  progressFill: {
-    width: '78%',
-    height: '100%',
-    backgroundColor: '#f59e0b',
-    borderRadius: 999,
-  },
-  progressText: {
-    color: '#d8d8d8',
-    fontSize: 11,
-    textAlign: 'right',
-  },
-  leaderboardTitle: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: '800',
-    marginBottom: 18,
-  },
-  barsRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    height: 150,
-    marginBottom: 12,
-  },
-  barCol: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  barSlot: {
-    width: '100%',
-    height: 120,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-  },
-  bar: {
-    width: 44,
-    borderRadius: 18,
-  },
-  barScore: {
-    color: '#e5e5e5',
-    fontSize: 11,
-    marginTop: 10,
-  },
-  peopleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 18,
-  },
-  personMeta: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  personRank: {
-    color: '#d4d4d4',
-    fontSize: 10,
-    marginBottom: 8,
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 999,
-    backgroundColor: '#f3f4f6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  avatarActive: {
-    backgroundColor: '#f59e0b',
-  },
-  avatarText: {
-    color: '#171717',
-    fontWeight: '700',
-    fontSize: 9,
-  },
-  personName: {
-    color: '#fff',
-    fontSize: 10,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  statBox: {
-    flex: 1,
-    backgroundColor: '#2a2a2a',
-    borderRadius: 16,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  statNumber: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: '800',
-    marginBottom: 6,
-  },
-  statLabel: {
-    color: '#d4d4d4',
-    fontSize: 10,
-    textAlign: 'center',
-  },
-  managementCard: {
-    width: '100%',
-    maxWidth: 780,
-    backgroundColor: '#f4f2ee',
-    borderRadius: 32,
-    padding: 18,
-    marginTop: 26,
-    shadowColor: '#c4b5a8',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.14,
-    shadowRadius: 18,
-    elevation: 4,
-  },
-  managementHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  managementTitle: {
-    color: '#171717',
-    fontSize: 28,
-    fontWeight: '800',
-    letterSpacing: -0.8,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  primaryAction: {
-    backgroundColor: '#171717',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  primaryActionText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  secondaryAction: {
-    backgroundColor: '#efeae4',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5dfd7',
-  },
-  secondaryActionText: {
-    color: '#171717',
-    fontWeight: '700',
-    fontSize: 12,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceAlt,
   },
   workshopGrid: {
     flexDirection: 'row',
-    gap: 12,
+    flexWrap: 'wrap',
+    gap: space.md,
+    justifyContent: 'space-between',
   },
-  workshopCard: {
-    flex: 1,
-    borderRadius: 20,
-    padding: 14,
-    minHeight: 110,
+  leaderboardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    paddingVertical: space.xs,
   },
-  workshopHead: {
+  settingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-  },
-  workshopTitle: {
-    color: '#171717',
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  workshopBadge: {
-    backgroundColor: '#fff',
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#171717',
-  },
-  workshopTeacher: {
-    color: '#4b5563',
-    fontSize: 12,
-    marginBottom: 16,
-  },
-  workshopFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  workshopDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 999,
-  },
-  workshopFooterText: {
-    color: '#171717',
-    fontWeight: '700',
-    fontSize: 12,
+    gap: space.md,
+    paddingVertical: space.xs,
   },
 });
