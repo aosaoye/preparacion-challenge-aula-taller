@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { Text } from './Text';
-import { colors, radius } from './theme';
+import { radius, useTheme } from './theme';
 
 type Props = TextInputProps & {
   label?: string;
@@ -21,19 +21,28 @@ export const Field = forwardRef<any, Props>(function Field(
   { label, error, hint, secure, multiline, style, ...rest },
   ref,
 ) {
+  const { isDark, colors } = useTheme();
   const [focused, setFocused] = useState(false);
   const [hidden, setHidden] = useState(!!secure);
 
   return (
     <View style={{ gap: 6 }}>
       {label && <Text variant="label">{label}</Text>}
-      <View style={[s.box, focused && s.focus, !!error && s.error]}>
+      <View
+        style={[
+          s.box,
+          {
+            backgroundColor: isDark ? '#16181C' : '#FFFFFF',
+            borderColor: error ? colors.danger : focused ? colors.accent : isDark ? '#2F3336' : '#EFF3F4',
+          },
+        ]}
+      >
         <TextInput
           ref={ref}
           {...rest}
           multiline={multiline}
           secureTextEntry={hidden}
-          placeholderTextColor={colors.faint}
+          placeholderTextColor={isDark ? '#71767B' : '#8B98A5'}
           onFocus={(e) => {
             setFocused(true);
             rest.onFocus?.(e);
@@ -43,7 +52,12 @@ export const Field = forwardRef<any, Props>(function Field(
             rest.onBlur?.(e);
           }}
           accessibilityLabel={label}
-          style={[s.input, multiline && s.multiline, style]}
+          style={[
+            s.input,
+            { color: isDark ? '#FFFFFF' : '#0F1419' },
+            multiline && s.multiline,
+            style,
+          ]}
         />
         {secure && (
           <Pressable
@@ -51,7 +65,11 @@ export const Field = forwardRef<any, Props>(function Field(
             hitSlop={10}
             accessibilityLabel={hidden ? 'Mostrar' : 'Ocultar'}
           >
-            <Feather name={hidden ? 'eye' : 'eye-off'} size={18} color={colors.muted} />
+            <Feather
+              name={hidden ? 'eye' : 'eye-off'}
+              size={18}
+              color={isDark ? '#71767B' : '#8B98A5'}
+            />
           </Pressable>
         )}
       </View>
@@ -60,7 +78,9 @@ export const Field = forwardRef<any, Props>(function Field(
           {error}
         </Text>
       ) : hint ? (
-        <Text variant="caption">{hint}</Text>
+        <Text variant="caption" style={{ color: colors.muted }}>
+          {hint}
+        </Text>
       ) : null}
     </View>
   );
@@ -70,23 +90,18 @@ const s = StyleSheet.create({
   box: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.line,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
   },
-  focus: { borderColor: colors.ink },
-  error: { borderColor: colors.danger },
   input: {
     flex: 1,
-    minHeight: 48,
+    minHeight: 46,
     fontSize: 15,
-    color: colors.ink,
     paddingVertical: 10,
   },
   multiline: {
-    minHeight: 110,
+    minHeight: 90,
     textAlignVertical: 'top',
     paddingTop: 12,
   },

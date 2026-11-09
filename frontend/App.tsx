@@ -13,7 +13,8 @@ import { EnrollmentMap, Student, Workshop } from './src/types';
 import { initialEnrollments, initialStudents, initialWorkshops } from './src/data/mockData';
 import { ApiService } from './src/api/client';
 import {
-  FilterPill,
+  FeaturedWorkshopCard,
+  HomeHeader,
   NewItemModal,
   StatsPanel,
   StudentOverviewCard,
@@ -25,17 +26,13 @@ import {
   Button,
   Card,
   ChipRow,
-  colors,
   CustomSwitch,
   Divider,
   EmptyState,
-  Field,
   gutter,
-  IconButton,
   ListRow,
   radius,
   Screen,
-  ScreenHeader,
   Section,
   space,
   TabBar,
@@ -48,10 +45,12 @@ import {
 } from './src/ui';
 
 function MainApp() {
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark, colors, toggleTheme } = useTheme();
 
-  // State
+  // Navigation State
   const [activeTab, setActiveTab] = useState<TabKey>('aula');
+
+  // Core Data State
   const [students, setStudents] = useState<Student[]>(initialStudents);
   const [workshops, setWorkshops] = useState<Workshop[]>(initialWorkshops);
   const [enrollments, setEnrollments] = useState<EnrollmentMap>(initialEnrollments);
@@ -272,84 +271,271 @@ function MainApp() {
   }, [students, enrollments, selectedWorkshopId]);
 
   return (
-    <Screen edges={['top']}>
+    <Screen edges={['top', 'bottom']}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
 
-      {/* Screen 1: AULA (Overview & Dashboard) */}
+      {/* Cabecera Principal estilo Cashbank / X en el tope de toda la app */}
+      <HomeHeader
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        onOpenNew={activeTab === 'talleres' ? handleOpenWorkshopModal : handleOpenStudentModal}
+        avatarName="Docente"
+      />
+
+      {/* TAB 1: AULA (INICIO & DASHBOARD DESTACADO) */}
       {activeTab === 'aula' && (
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={s.scrollContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.accent}
+            />
+          }
         >
-          <ScreenHeader
-            kicker="Centro Educativo"
-            title="Aula Virtual"
-            right={
-              <View style={s.headerActions}>
-                <Button title="+ Alumno" size="sm" variant="primary" onPress={handleOpenStudentModal} />
-                <Button title="+ Taller" size="sm" variant="secondary" onPress={handleOpenWorkshopModal} />
-              </View>
-            }
-          />
-
-          {/* Featured Next Lesson Card */}
-          <View style={{ paddingHorizontal: gutter }}>
-            <Card tone="accent" style={s.lessonCard}>
+          {/* Próxima sesión activa (Hero Card) */}
+          <View style={{ paddingHorizontal: gutter, paddingTop: space.md }}>
+            <View
+              style={[
+                s.lessonCard,
+                {
+                  backgroundColor: isDark ? '#16181C' : '#FFFFFF',
+                  borderColor: isDark ? '#2F3336' : '#EFF3F4',
+                },
+              ]}
+            >
               <View style={s.lessonTop}>
-                <View>
-                  <Text variant="kicker">Siguiente sesión activa</Text>
-                  <Text variant="title" style={{ marginTop: 2 }}>{selectedWorkshop.name}</Text>
-                  <Text variant="caption" style={{ color: colors.muted, marginTop: 2 }}>
-                    Instructor: {selectedWorkshop.instructor}
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text variant="kicker" style={{ color: colors.accent }}>
+                    Próxima sesión en vivo
+                  </Text>
+                  <Text
+                    variant="title"
+                    numberOfLines={1}
+                    style={{ color: colors.ink, fontWeight: '800' }}
+                  >
+                    {selectedWorkshop.name}
+                  </Text>
+                  <Text variant="caption" style={{ color: colors.muted }}>
+                    Docente titular: {selectedWorkshop.instructor}
                   </Text>
                 </View>
-                <View style={s.timerRing}>
-                  <Text variant="label" style={{ color: colors.accent, fontWeight: '800' }}>4 min</Text>
+
+                <View
+                  style={[
+                    s.timerRing,
+                    {
+                      borderColor: colors.accent,
+                      backgroundColor: isDark ? '#202327' : '#FCE5DD',
+                    },
+                  ]}
+                >
+                  <Text
+                    variant="label"
+                    style={{ color: colors.accent, fontWeight: '800' }}
+                  >
+                    4 min
+                  </Text>
                 </View>
               </View>
 
               <View style={s.lessonMetaRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Feather name="clock" size={14} color={colors.muted} />
-                  <Text variant="caption">10:00 - 10:45</Text>
+                  <Feather name="clock" size={15} color={colors.muted} />
+                  <Text variant="caption" style={{ color: colors.muted }}>
+                    10:00 - 10:45 AM
+                  </Text>
                 </View>
+
                 <Badge
-                  label={`${selectedWorkshop.capacity - (workshopEnrollmentCounts[selectedWorkshop.id] ?? 0)} plazas libres`}
+                  label={`${Math.max(0, selectedWorkshop.capacity - (workshopEnrollmentCounts[selectedWorkshop.id] ?? 0))} plazas disponibles`}
                   tone="accent"
                 />
               </View>
 
-              {/* Progress bar */}
-              <View style={s.progressBarTrack}>
+              {/* Barra de progreso de capacidad */}
+              <View
+                style={[
+                  s.progressBarTrack,
+                  { backgroundColor: isDark ? '#2F3336' : '#EFF3F4' },
+                ]}
+              >
                 <View
                   style={[
                     s.progressBarFill,
                     {
                       width: `${Math.min(100, ((workshopEnrollmentCounts[selectedWorkshop.id] ?? 0) / selectedWorkshop.capacity) * 100)}%`,
+                      backgroundColor: colors.accent,
                     },
                   ]}
                 />
               </View>
-            </Card>
+            </View>
           </View>
 
-          {/* Talleres Carousel */}
-          <Section
-            title="Talleres del Curso"
-            action={
+          {/* Carrusel de Talleres Destacados estilo Cashbank (con peek de 28px) */}
+          <View style={{ gap: space.xs, marginTop: space.xs }}>
+            <View style={s.sectionTitleRow}>
+              <Text variant="heading" style={{ color: colors.ink }}>
+                Talleres Destacados
+              </Text>
               <Pressable onPress={() => setActiveTab('talleres')}>
                 <Text variant="caption" style={{ color: colors.accent, fontWeight: '700' }}>
                   Ver todos ({workshops.length})
                 </Text>
               </Pressable>
-            }
-          >
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: gutter, gap: space.md }}
-            >
+            </View>
+
+            <FeaturedWorkshopCard
+              workshops={workshops}
+              selectedWorkshopId={selectedWorkshopId}
+              workshopEnrollmentCounts={workshopEnrollmentCounts}
+              onSelectWorkshop={(id) => {
+                setSelectedWorkshopId(id);
+                const w = workshops.find((item) => item.id === id);
+                if (w) toast.info(`Taller activo: ${w.name}`);
+              }}
+            />
+          </View>
+
+          {/* Horario del Día estilo Twitter Feed */}
+          <View style={{ paddingHorizontal: gutter, gap: space.sm }}>
+            <Text variant="heading" style={{ color: colors.ink }}>
+              Horario de Clases
+            </Text>
+
+            {[
+              {
+                time: '10:00 - 10:45',
+                title: selectedWorkshop.name,
+                teacher: selectedWorkshop.instructor,
+                dur: '45 min',
+              },
+              {
+                time: '11:00 - 11:45',
+                title: 'Matemáticas y Algoritmos',
+                teacher: 'Dr. Marco Lee',
+                dur: '45 min',
+              },
+              {
+                time: '12:00 - 12:45',
+                title: 'Laboratorio de Ciencias',
+                teacher: 'Dra. Carla Díaz',
+                dur: '45 min',
+              },
+            ].map((item, idx) => (
+              <View
+                key={idx}
+                style={[
+                  s.scheduleRow,
+                  {
+                    backgroundColor: isDark ? '#16181C' : '#FFFFFF',
+                    borderColor: isDark ? '#2F3336' : '#EFF3F4',
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    s.timeBadge,
+                    { backgroundColor: isDark ? '#202327' : '#F7F9F9' },
+                  ]}
+                >
+                  <Text
+                    variant="caption"
+                    style={{ fontWeight: '700', color: colors.ink }}
+                  >
+                    {item.time}
+                  </Text>
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text variant="label" style={{ color: colors.ink }}>
+                    {item.title}
+                  </Text>
+                  <Text variant="caption" style={{ color: colors.muted }}>
+                    {item.teacher}
+                  </Text>
+                </View>
+
+                <Badge label={item.dur} tone="neutral" />
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      )}
+
+      {/* TAB 2: ALUMNOS (DIRECTORIO Y FEED) */}
+      {activeTab === 'alumnos' && (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={s.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.accent}
+            />
+          }
+        >
+          {/* Fila de chips de filtro al 100% del ancho como en Twitter/X */}
+          <View style={{ paddingTop: space.sm }}>
+            <ChipRow
+              options={filterOptions}
+              value={categoryFilter}
+              onChange={(val) => setCategoryFilter(val)}
+            />
+          </View>
+
+          {/* Directorio de Alumnos en lista plana con Divider */}
+          <StudentOverviewCard
+            search={search}
+            onSearchChange={setSearch}
+            filteredStudents={filteredStudents}
+            selectedWorkshopId={selectedWorkshopId}
+            workshopName={selectedWorkshop.name}
+            onToggleEnrollment={handleToggleEnrollment}
+            onDeleteStudent={handleDeleteStudent}
+            isEnrolled={(id) => (enrollments[selectedWorkshopId] ?? []).includes(id)}
+          />
+        </ScrollView>
+      )}
+
+      {/* TAB 3: TALLERES (PLAN DE ESTUDIOS Y GESTIÓN) */}
+      {activeTab === 'talleres' && (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={s.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.accent}
+            />
+          }
+        >
+          <View style={{ paddingHorizontal: gutter, paddingTop: space.md, gap: space.md }}>
+            <View style={s.sectionTitleRow}>
+              <View>
+                <Text variant="kicker" style={{ color: colors.accent }}>
+                  Plan de Estudios
+                </Text>
+                <Text variant="title" style={{ color: colors.ink, fontWeight: '800' }}>
+                  Talleres Disponibles
+                </Text>
+              </View>
+
+              <Button
+                title="+ Taller"
+                size="sm"
+                variant="primary"
+                onPress={handleOpenWorkshopModal}
+              />
+            </View>
+
+            {/* Lista de tarjetas de talleres */}
+            <View style={s.workshopGrid}>
               {workshops.map((w) => (
                 <WorkshopCard
                   key={w.id}
@@ -363,111 +549,30 @@ function MainApp() {
                   onDelete={handleDeleteWorkshop}
                 />
               ))}
-            </ScrollView>
-          </Section>
-
-          {/* Quick Schedule */}
-          <View style={{ paddingHorizontal: gutter, gap: space.sm }}>
-            <Text variant="heading">Horario del Día</Text>
-            {[
-              { time: '10:00 - 10:45', title: selectedWorkshop.name, teacher: selectedWorkshop.instructor, dur: '45 min' },
-              { time: '11:00 - 11:45', title: 'Matemáticas y Análisis', teacher: 'Dr. Marco Lee', dur: '45 min' },
-              { time: '12:00 - 12:45', title: 'Laboratorio de Pruebas', teacher: 'Dra. Carla Díaz', dur: '45 min' },
-            ].map((item, idx) => (
-              <Card key={idx} tone="soft" style={s.scheduleRow}>
-                <View style={s.timeBadge}>
-                  <Text variant="caption" style={{ fontWeight: '700', color: colors.ink }}>{item.time}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text variant="label">{item.title}</Text>
-                  <Text variant="caption" style={{ color: colors.muted }}>{item.teacher}</Text>
-                </View>
-                <Badge label={item.dur} tone="neutral" />
-              </Card>
-            ))}
-          </View>
-        </ScrollView>
-      )}
-
-      {/* Screen 2: ALUMNOS */}
-      {activeTab === 'alumnos' && (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={s.scrollContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
-        >
-          <ScreenHeader
-            kicker="Directorio"
-            title="Alumnos"
-            right={
-              <Button title="+ Alumno" size="sm" variant="primary" onPress={handleOpenStudentModal} />
-            }
-          />
-
-          {/* Filter Chips */}
-          <ChipRow
-            options={filterOptions}
-            value={categoryFilter}
-            onChange={(val) => setCategoryFilter(val)}
-          />
-
-          <View style={{ paddingHorizontal: gutter }}>
-            <StudentOverviewCard
-              search={search}
-              onSearchChange={setSearch}
-              filteredStudents={filteredStudents}
-              selectedWorkshopId={selectedWorkshopId}
-              workshopName={selectedWorkshop.name}
-              onToggleEnrollment={handleToggleEnrollment}
-              onDeleteStudent={handleDeleteStudent}
-              isEnrolled={(id) => (enrollments[selectedWorkshopId] ?? []).includes(id)}
-            />
-          </View>
-        </ScrollView>
-      )}
-
-      {/* Screen 3: TALLERES */}
-      {activeTab === 'talleres' && (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={s.scrollContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
-        >
-          <ScreenHeader
-            kicker="Plan de Estudios"
-            title="Talleres"
-            right={
-              <Button title="+ Taller" size="sm" variant="primary" onPress={handleOpenWorkshopModal} />
-            }
-          />
-
-          <View style={{ paddingHorizontal: gutter, gap: space.md }}>
-            <Text variant="body" style={{ color: colors.muted }}>
-              Selecciona un taller para revisar su información y la lista de estudiantes inscritos.
-            </Text>
-
-            <View style={s.workshopGrid}>
-              {workshops.map((w) => (
-                <WorkshopCard
-                  key={w.id}
-                  workshop={w}
-                  isSelected={w.id === selectedWorkshopId}
-                  enrolledCount={workshopEnrollmentCounts[w.id] ?? 0}
-                  onSelect={(id) => setSelectedWorkshopId(id)}
-                  onDelete={handleDeleteWorkshop}
-                />
-              ))}
             </View>
 
-            {/* Enrolled students in selected workshop */}
-            <Card tone="soft" style={{ gap: space.md, marginTop: space.sm }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <View>
-                  <Text variant="kicker">Inscripciones Activas</Text>
-                  <Text variant="heading">{selectedWorkshop.name}</Text>
+            {/* Lista de estudiantes en el taller activo */}
+            <View
+              style={[
+                s.activeEnrolledCard,
+                {
+                  backgroundColor: isDark ? '#16181C' : '#FFFFFF',
+                  borderColor: isDark ? '#2F3336' : '#EFF3F4',
+                },
+              ]}
+            >
+              <View style={s.activeEnrolledHeader}>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text variant="kicker" style={{ color: colors.accent }}>
+                    Inscripciones en Taller
+                  </Text>
+                  <Text variant="heading" style={{ color: colors.ink, fontWeight: '700' }}>
+                    {selectedWorkshop.name}
+                  </Text>
                 </View>
+
                 <Badge
-                  label={`${(enrollments[selectedWorkshopId] ?? []).length} alumnos`}
+                  label={`${(enrollments[selectedWorkshopId] ?? []).length} de ${selectedWorkshop.capacity}`}
                   tone="accent"
                 />
               </View>
@@ -477,94 +582,134 @@ function MainApp() {
               {(enrollments[selectedWorkshopId] ?? []).length === 0 ? (
                 <EmptyState
                   icon="user-plus"
-                  title="Sin alumnos inscritos"
-                  message="Inscribe alumnos desde la pestaña de Alumnos."
+                  title="Sin alumnos en este taller"
+                  message="Inscribe alumnos desde la pestaña Alumnos o toca un alumno para asignarlo."
                   actionLabel="Ir a Alumnos"
                   onAction={() => setActiveTab('alumnos')}
                 />
               ) : (
                 students
                   .filter((s) => (enrollments[selectedWorkshopId] ?? []).includes(s.id))
-                  .map((student) => (
-                    <ListRow
-                      key={student.id}
-                      title={student.name}
-                      subtitle={student.course}
-                      left={<Avatar name={student.name} size={36} />}
-                      right={
-                        <Button
-                          title="Quitar"
-                          size="sm"
-                          variant="ghost"
-                          onPress={() => handleToggleEnrollment(student.id)}
-                        />
-                      }
-                    />
+                  .map((student, idx) => (
+                    <React.Fragment key={student.id}>
+                      {idx > 0 && <Divider />}
+                      <ListRow
+                        title={student.name}
+                        subtitle={student.course}
+                        left={<Avatar name={student.name} size={38} />}
+                        right={
+                          <Button
+                            title="Quitar"
+                            size="sm"
+                            variant="secondary"
+                            onPress={() => handleToggleEnrollment(student.id)}
+                          />
+                        }
+                      />
+                    </React.Fragment>
                   ))
               )}
-            </Card>
+            </View>
           </View>
         </ScrollView>
       )}
 
-      {/* Screen 4: MÉTRICAS Y AJUSTES */}
+      {/* TAB 4: MÉTRICAS Y AJUSTES */}
       {activeTab === 'metricas' && (
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={s.scrollContent}
         >
-          <ScreenHeader
-            kicker="Panel Analítico"
-            title="Métricas"
+          {/* Panel de métricas con tarjetas 2x2 */}
+          <StatsPanel
+            totalStudents={stats.total}
+            activeStudents={stats.active}
+            lessCrowdedWorkshop={stats.minW}
+            mostCrowdedWorkshop={stats.maxW}
           />
 
-          <View style={{ paddingHorizontal: gutter, gap: space.lg }}>
-            <StatsPanel
-              totalStudents={stats.total}
-              activeStudents={stats.active}
-              lessCrowdedWorkshop={stats.minW}
-              mostCrowdedWorkshop={stats.maxW}
-            />
-
-            {/* Leaderboard */}
-            <Card tone="soft" style={{ gap: space.md }}>
-              <Text variant="kicker">Rendimiento Destacado</Text>
-              <Text variant="heading">Mejores Puntuaciones</Text>
+          {/* Ranking de mejores puntuaciones */}
+          <View style={{ paddingHorizontal: gutter, marginTop: space.lg }}>
+            <View
+              style={[
+                s.settingCard,
+                {
+                  backgroundColor: isDark ? '#16181C' : '#FFFFFF',
+                  borderColor: isDark ? '#2F3336' : '#EFF3F4',
+                },
+              ]}
+            >
+              <Text variant="kicker" style={{ color: colors.accent }}>
+                Rendimiento Destacado
+              </Text>
+              <Text variant="heading" style={{ color: colors.ink, fontWeight: '700' }}>
+                Mejores Puntuaciones de Alumnos
+              </Text>
 
               {[...students]
                 .sort((a, b) => b.level - a.level)
                 .slice(0, 5)
                 .map((student, idx) => (
                   <View key={student.id} style={s.leaderboardRow}>
-                    <Text variant="label" style={{ width: 24, fontWeight: '800', color: colors.accent }}>
+                    <Text
+                      variant="label"
+                      style={{
+                        width: 24,
+                        fontWeight: '800',
+                        color: idx === 0 ? colors.accent : colors.muted,
+                      }}
+                    >
                       #{idx + 1}
                     </Text>
-                    <Avatar name={student.name} size={34} />
+                    <Avatar name={student.name} size={36} />
                     <View style={{ flex: 1 }}>
-                      <Text variant="label">{student.name}</Text>
-                      <Text variant="caption">{student.course}</Text>
+                      <Text variant="label" style={{ color: colors.ink }}>
+                        {student.name}
+                      </Text>
+                      <Text variant="caption" style={{ color: colors.muted }}>
+                        {student.course}
+                      </Text>
                     </View>
-                    <Badge label={`${student.level} pts`} tone={idx === 0 ? 'accent' : 'neutral'} />
+                    <Badge
+                      label={`${student.level} pts`}
+                      tone={idx === 0 ? 'accent' : 'neutral'}
+                    />
                   </View>
                 ))}
-            </Card>
+            </View>
+          </View>
 
-            {/* Settings & Appearance */}
-            <Card tone="soft" style={{ gap: space.md }}>
-              <Text variant="kicker">Configuración</Text>
-              <Text variant="heading">Apariencia y Sistema</Text>
+          {/* Ajustes y Modo Oscuro/Claro */}
+          <View style={{ paddingHorizontal: gutter, marginTop: space.md }}>
+            <View
+              style={[
+                s.settingCard,
+                {
+                  backgroundColor: isDark ? '#16181C' : '#FFFFFF',
+                  borderColor: isDark ? '#2F3336' : '#EFF3F4',
+                },
+              ]}
+            >
+              <Text variant="kicker" style={{ color: colors.accent }}>
+                Sistema y Apariencia
+              </Text>
+              <Text variant="heading" style={{ color: colors.ink, fontWeight: '700' }}>
+                Configuración Visual
+              </Text>
 
               <View style={s.settingRow}>
                 <View style={{ flex: 1 }}>
-                  <Text variant="label">Modo Oscuro</Text>
+                  <Text variant="label" style={{ color: colors.ink }}>
+                    Modo Oscuro (Estilo X)
+                  </Text>
                   <Text variant="caption" style={{ color: colors.muted }}>
-                    Alterna entre tema claro y tema oscuro (estilo X/Twitter)
+                    Alterna entre tema claro y tema oscuro OLED con alto contraste
                   </Text>
                 </View>
                 <CustomSwitch
                   value={isDark}
                   onValueChange={toggleTheme}
-                  accessibilityLabel="Modo oscuro"
+                  accessibilityLabel="Alternar modo oscuro"
                 />
               </View>
 
@@ -572,22 +717,29 @@ function MainApp() {
 
               <View style={s.settingRow}>
                 <View style={{ flex: 1 }}>
-                  <Text variant="label">Servidor Backend</Text>
+                  <Text variant="label" style={{ color: colors.ink }}>
+                    Servidor Backend
+                  </Text>
                   <Text variant="caption" style={{ color: colors.muted }}>
                     http://localhost:3001 (NestJS + TypeORM)
                   </Text>
                 </View>
-                <Button title="Probar" size="sm" variant="secondary" onPress={onRefresh} />
+                <Button
+                  title="Comprobar"
+                  size="sm"
+                  variant="secondary"
+                  onPress={onRefresh}
+                />
               </View>
-            </Card>
+            </View>
           </View>
         </ScrollView>
       )}
 
-      {/* Floating Bottom Tab Bar */}
+      {/* Barra de pestañas inferior estilo Cashbank */}
       <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {/* Modal for adding Student or Workshop */}
+      {/* Modal para Crear Alumno o Taller */}
       <NewItemModal
         visible={modalVisible}
         mode={modalMode}
@@ -603,6 +755,7 @@ function MainApp() {
         onSave={handleSaveModal}
       />
 
+      {/* Notificaciones Toaster flotantes */}
       <Toaster />
     </Screen>
   );
@@ -621,30 +774,27 @@ export default function App() {
 const s = StyleSheet.create({
   scrollContent: {
     paddingBottom: space.xxxl,
-    gap: space.lg,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
+    gap: space.md,
   },
   lessonCard: {
+    borderRadius: radius.lg,
+    padding: space.lg,
+    borderWidth: 1,
     gap: space.md,
   },
   lessonTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    gap: space.md,
   },
   timerRing: {
-    width: 58,
-    height: 58,
+    width: 54,
+    height: 54,
     borderRadius: radius.pill,
-    borderWidth: 3,
-    borderColor: colors.accent,
+    borderWidth: 2.5,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
   },
   lessonMetaRow: {
     flexDirection: 'row',
@@ -652,33 +802,53 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   progressBarTrack: {
-    height: 8,
+    height: 7,
     borderRadius: radius.pill,
-    backgroundColor: colors.line,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: colors.accent,
     borderRadius: radius.pill,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: gutter,
+    marginBottom: space.xs,
   },
   scheduleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
     padding: space.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
   },
   timeBadge: {
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.sm,
   },
   workshopGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    width: '100%',
+  },
+  activeEnrolledCard: {
+    borderRadius: radius.lg,
+    padding: space.lg,
+    borderWidth: 1,
     gap: space.md,
+  },
+  activeEnrolledHeader: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  settingCard: {
+    borderRadius: radius.lg,
+    padding: space.lg,
+    borderWidth: 1,
+    gap: space.md,
   },
   leaderboardRow: {
     flexDirection: 'row',

@@ -3,7 +3,7 @@ import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { Edge, SafeAreaView } from 'react-native-safe-area-context';
 import { IconButton } from './Button';
 import { Text } from './Text';
-import { colors, gutter, radius, space } from './theme';
+import { gutter, radius, space, useTheme } from './theme';
 
 export function Screen({
   children,
@@ -14,6 +14,8 @@ export function Screen({
   edges?: Edge[];
   style?: StyleProp<ViewStyle>;
 }) {
+  const { colors } = useTheme();
+
   return (
     <SafeAreaView edges={edges} style={[{ flex: 1, backgroundColor: colors.bg }, style]}>
       {children}
@@ -37,7 +39,7 @@ export function ScreenHeader({
     <View style={[s.header, flush && { paddingHorizontal: 0, paddingTop: 0 }]}>
       <View style={{ flex: 1 }}>
         <Text variant="kicker">{kicker}</Text>
-        <Text variant="display" style={{ marginTop: space.xs }}>
+        <Text variant="display" style={{ marginTop: 2 }}>
           {title}
         </Text>
       </View>
@@ -56,8 +58,10 @@ export function NavHeader({
   right?: ReactNode;
   onBack?: () => void;
 }) {
+  const { colors } = useTheme();
+
   return (
-    <View style={s.nav}>
+    <View style={[s.nav, { borderBottomColor: colors.line }]}>
       {onBack && (
         <IconButton
           name="chevron-left"
@@ -90,7 +94,13 @@ export function Sheet({
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
-  return <View style={[s.sheet, style]}>{children}</View>;
+  const { colors } = useTheme();
+
+  return (
+    <View style={[s.sheet, { backgroundColor: colors.surface }, style]}>
+      {children}
+    </View>
+  );
 }
 
 export function Card({
@@ -102,12 +112,19 @@ export function Card({
   tone?: 'soft' | 'solid' | 'accent';
   style?: StyleProp<ViewStyle>;
 }) {
+  const { isDark, colors } = useTheme();
+
   const bg =
     tone === 'solid'
-      ? colors.ink
+      ? isDark ? '#16181C' : '#0F1419'
       : tone === 'accent'
-        ? colors.surfaceAlt
-        : colors.surface;
+        ? isDark ? '#1E1410' : '#FCE5DD'
+        : isDark ? '#16181C' : '#FFFFFF';
+
+  const border =
+    tone === 'accent'
+      ? isDark ? '#3A1D12' : '#F1D6CC'
+      : isDark ? '#2F3336' : '#EFF3F4';
 
   return (
     <View
@@ -115,7 +132,7 @@ export function Card({
         s.card,
         {
           backgroundColor: bg,
-          borderColor: colors.line,
+          borderColor: border,
         },
         style,
       ]}
@@ -151,7 +168,7 @@ const s = StyleSheet.create({
   header: {
     paddingHorizontal: gutter,
     paddingTop: space.md,
-    paddingBottom: space.md,
+    paddingBottom: space.sm,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
@@ -163,10 +180,8 @@ const s = StyleSheet.create({
     paddingHorizontal: gutter,
     height: 52,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.line,
   },
   sheet: {
-    backgroundColor: colors.surface,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     padding: gutter,

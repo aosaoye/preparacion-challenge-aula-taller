@@ -1,7 +1,7 @@
 import type { StyleProp, ViewStyle } from 'react-native';
 import { Pressable, ScrollView, StyleSheet } from 'react-native';
 import { Text } from './Text';
-import { colors, gutter, radius, space } from './theme';
+import { gutter, radius, space, useTheme } from './theme';
 
 export function Chip({
   label,
@@ -14,20 +14,41 @@ export function Chip({
   onPress?: () => void;
   count?: number;
 }) {
+  const { isDark } = useTheme();
+
+  const bg = active
+    ? isDark ? '#FFFFFF' : '#0F1419'
+    : isDark ? '#16181C' : '#F7F9F9';
+
+  const fg = active
+    ? isDark ? '#000000' : '#FFFFFF'
+    : isDark ? '#E7E9EA' : '#536471';
+
+  const border = active
+    ? 'transparent'
+    : isDark ? '#2F3336' : '#EFF3F4';
+
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: !!active }}
-      style={[s.chip, active && s.active]}
+      style={({ pressed }) => [
+        s.chip,
+        {
+          backgroundColor: bg,
+          borderColor: border,
+        },
+        pressed && { opacity: 0.88 },
+      ]}
     >
       <Text
         variant="caption"
         style={{
           fontSize: 13,
           lineHeight: 18,
-          fontWeight: '600',
-          color: active ? colors.onInk : colors.muted,
+          fontWeight: active ? '700' : '600',
+          color: fg,
         }}
       >
         {label}
@@ -86,18 +107,12 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   chip: {
-    minHeight: 36,
+    minHeight: 34,
     paddingHorizontal: 16,
     paddingVertical: 7,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  active: {
-    backgroundColor: colors.ink,
-    borderColor: colors.ink,
   },
 });

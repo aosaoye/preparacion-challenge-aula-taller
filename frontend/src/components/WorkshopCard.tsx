@@ -1,7 +1,8 @@
+import React from 'react';
 import { Feather } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Workshop } from '../types';
-import { Badge, colors, radius, space, Text } from '../ui';
+import { Avatar, Badge, Button, Cover, radius, space, Text, useTheme } from '../ui';
 
 type WorkshopCardProps = {
   workshop: Workshop;
@@ -18,67 +19,112 @@ export function WorkshopCard({
   onSelect,
   onDelete,
 }: WorkshopCardProps) {
+  const { isDark, colors } = useTheme();
   const freeSlots = Math.max(0, workshop.capacity - enrolledCount);
+  const percentage = Math.min(100, Math.round((enrolledCount / workshop.capacity) * 100));
   const tone = freeSlots === 0 ? 'danger' : freeSlots <= 3 ? 'warn' : 'success';
 
   return (
     <Pressable
       onPress={() => onSelect(workshop.id)}
+      accessibilityRole="button"
       style={({ pressed }) => [
         s.card,
         {
-          borderColor: isSelected ? colors.accent : colors.line,
-          backgroundColor: isSelected ? colors.surfaceAlt : colors.surface,
+          backgroundColor: isDark ? '#16181C' : '#FFFFFF',
+          borderColor: isSelected ? colors.accent : isDark ? '#2F3336' : '#EFF3F4',
+          borderWidth: isSelected ? 1.5 : 1,
         },
-        pressed && { opacity: 0.8 },
+        pressed && { opacity: 0.9 },
       ]}
     >
+      {/* Cabecera con Avatar de taller, Nombre e Instructor */}
       <View style={s.topRow}>
         <View style={s.titleWrap}>
-          <View style={[s.dot, { backgroundColor: workshop.color }]} />
-          <Text variant="heading" numberOfLines={1} style={{ flex: 1 }}>
-            {workshop.name}
-          </Text>
+          <Avatar name={workshop.name} size={40} />
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text
+                variant="heading"
+                numberOfLines={1}
+                style={{
+                  color: colors.ink,
+                  fontWeight: '700',
+                  flexShrink: 1,
+                }}
+              >
+                {workshop.name}
+              </Text>
+              {isSelected && (
+                <Feather name="check-circle" size={15} color={colors.accent} />
+              )}
+            </View>
+            <Text variant="caption" style={{ color: colors.muted }}>
+              {workshop.instructor}
+            </Text>
+          </View>
         </View>
+
         <Badge
-          label={`${freeSlots} libres`}
+          label={freeSlots === 0 ? 'Lleno' : `${freeSlots} libres`}
           tone={tone}
         />
       </View>
 
-      <Text variant="caption" style={{ color: colors.muted }}>
-        {workshop.instructor}
-      </Text>
+      {/* Portada del taller */}
+      <Cover seed={workshop.id} style={{ height: 85 }} />
 
-      <View style={s.footer}>
-        <View style={s.capacityBarBg}>
+      {/* Barra de progreso de capacidad */}
+      <View style={s.progressSection}>
+        <View style={[s.capacityBarBg, { backgroundColor: isDark ? '#2F3336' : '#EFF3F4' }]}>
           <View
             style={[
               s.capacityBarFill,
               {
-                width: `${Math.min(100, (enrolledCount / workshop.capacity) * 100)}%`,
-                backgroundColor: workshop.color,
+                width: `${percentage}%`,
+                backgroundColor: workshop.color || colors.accent,
               },
             ]}
           />
         </View>
 
         <View style={s.bottomMeta}>
-          <Text variant="caption" style={{ fontWeight: '600', color: colors.ink }}>
-            {enrolledCount}/{workshop.capacity} inscritos
+          <Text variant="caption" style={{ fontWeight: '700', color: colors.ink }}>
+            {enrolledCount} / {workshop.capacity} alumnos ({percentage}%)
           </Text>
-          {onDelete && (
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                onDelete(workshop.id);
-              }}
-              hitSlop={8}
-            >
-              <Feather name="trash-2" size={14} color={colors.danger} />
-            </Pressable>
-          )}
+          <Badge
+            label={percentage >= 100 ? 'Completo' : 'Inscripciones abiertas'}
+            tone={percentage >= 100 ? 'danger' : 'neutral'}
+          />
         </View>
+      </View>
+
+      {/* Botones de acción inferiores */}
+      <View style={s.footerActions}>
+        <Button
+          title={isSelected ? 'Taller Seleccionado' : 'Seleccionar'}
+          variant={isSelected ? 'primary' : 'secondary'}
+          size="sm"
+          onPress={() => onSelect(workshop.id)}
+          style={{ flex: 1 }}
+        />
+
+        {onDelete && (
+          <Pressable
+            onPress={(e) => {
+              e.stopPropagation();
+              onDelete(workshop.id);
+            }}
+            hitSlop={8}
+            style={[
+              s.deleteBtn,
+              { backgroundColor: isDark ? '#202327' : '#EFF3F4' },
+            ]}
+            accessibilityLabel={`Eliminar ${workshop.name}`}
+          >
+            <Feather name="trash-2" size={16} color={colors.danger} />
+          </Pressable>
+        )}
       </View>
     </Pressable>
   );
@@ -86,38 +132,29 @@ export function WorkshopCard({
 
 const s = StyleSheet.create({
   card: {
-    width: 220,
     borderRadius: radius.lg,
     padding: space.lg,
-    borderWidth: 1.5,
-    gap: space.sm,
-    justifyContent: 'space-between',
+    gap: space.md,
+    marginBottom: space.md,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: space.xs,
+    gap: space.sm,
   },
   titleWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.xs,
+    gap: space.sm,
     flex: 1,
   },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: radius.pill,
-  },
-  footer: {
+  progressSection: {
     gap: 6,
-    marginTop: space.xs,
   },
   capacityBarBg: {
     height: 6,
     borderRadius: radius.pill,
-    backgroundColor: colors.line,
     overflow: 'hidden',
   },
   capacityBarFill: {
@@ -128,5 +165,17 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  footerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+  },
+  deleteBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

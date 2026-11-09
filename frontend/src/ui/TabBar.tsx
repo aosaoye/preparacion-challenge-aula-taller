@@ -2,7 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from './Text';
-import { colors, space } from './theme';
+import { useTheme } from './theme';
 
 export type TabKey = 'aula' | 'alumnos' | 'talleres' | 'metricas';
 
@@ -13,7 +13,7 @@ export interface TabItem {
 }
 
 export const TABS: TabItem[] = [
-  { key: 'aula', label: 'Aula', icon: 'grid' },
+  { key: 'aula', label: 'Inicio', icon: 'home' },
   { key: 'alumnos', label: 'Alumnos', icon: 'users' },
   { key: 'talleres', label: 'Talleres', icon: 'book-open' },
   { key: 'metricas', label: 'Métricas', icon: 'bar-chart-2' },
@@ -27,47 +27,44 @@ export function TabBar({
   onTabChange: (tab: TabKey) => void;
 }) {
   const { bottom } = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
 
   return (
     <View
       style={[
-        s.container,
+        s.bar,
         {
-          paddingBottom: Math.max(bottom, space.sm),
-          backgroundColor: colors.surface,
-          borderTopColor: colors.line,
+          paddingBottom: Math.max(bottom, 10),
+          backgroundColor: colors.bg,
+          borderTopColor: isDark ? '#2F3336' : '#EFF3F4',
         },
       ]}
     >
       {TABS.map((tab) => {
-        const isActive = tab.key === activeTab;
+        const focused = tab.key === activeTab;
+        const color = focused ? colors.accent : isDark ? '#71767B' : '#536471';
+
         return (
           <Pressable
             key={tab.key}
             onPress={() => onTabChange(tab.key)}
-            style={({ pressed }) => [s.tab, pressed && { opacity: 0.7 }]}
+            style={s.item}
             accessibilityRole="tab"
-            accessibilityState={{ selected: isActive }}
+            accessibilityState={{ selected: focused }}
           >
-            <View style={[s.pill, isActive && { backgroundColor: colors.accentSoft }]}>
-              <Feather
-                name={tab.icon}
-                size={20}
-                color={isActive ? colors.accent : colors.muted}
-              />
+            <View style={s.iconBox}>
+              <Feather name={tab.icon} size={22} color={color} />
+              <Text
+                variant="caption"
+                style={{
+                  color,
+                  fontSize: 11,
+                  fontWeight: focused ? '700' : '500',
+                }}
+              >
+                {tab.label}
+              </Text>
             </View>
-            <Text
-              variant="caption"
-              style={[
-                s.label,
-                {
-                  color: isActive ? colors.accent : colors.muted,
-                  fontWeight: isActive ? '700' : '500',
-                },
-              ]}
-            >
-              {tab.label}
-            </Text>
           </Pressable>
         );
       })}
@@ -76,28 +73,22 @@ export function TabBar({
 }
 
 const s = StyleSheet.create({
-  container: {
-    width: '100%',
+  bar: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingTop: space.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: 8,
+    paddingHorizontal: 8,
+    width: '100%',
   },
-  tab: {
+  item: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
   },
-  pill: {
-    paddingHorizontal: 16,
-    paddingVertical: 4,
-    borderRadius: 20,
+  iconBox: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  label: {
-    fontSize: 11,
+    paddingVertical: 2,
+    gap: 3,
   },
 });

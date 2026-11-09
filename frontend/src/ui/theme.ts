@@ -2,25 +2,25 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, createElement, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Appearance, type ColorSchemeName, type TextStyle } from 'react-native';
 
-/** Tokens de diseño inspirados en cashbank-app */
 export const lightColors = {
   bg: '#FFFFFF',
   surface: '#FFFFFF',
-  surfaceAlt: '#FCE5DD',
+  surfaceAlt: '#F7F9F9',
+  card: '#FFFFFF',
   tabBar: '#FFFFFF',
   tabActive: '#FCE5DD',
-  ink: '#141211',
-  muted: '#6E625E',
-  faint: '#A3938E',
-  line: '#F1D6CC',
+  ink: '#0F1419',
+  muted: '#536471',
+  faint: '#8B98A5',
+  line: '#EFF3F4',
   accent: '#E4531D',
-  accentSoft: '#FADCD2',
-  success: '#2F7D4F',
-  successSoft: '#D8EBDD',
-  warn: '#8F6410',
-  warnSoft: '#F1E3C4',
-  danger: '#C0392B',
-  dangerSoft: '#F3D9D5',
+  accentSoft: '#FCE5DD',
+  success: '#00BA7C',
+  successSoft: '#DEF7EC',
+  warn: '#F59E0B',
+  warnSoft: '#FEF3C7',
+  danger: '#F4212E',
+  dangerSoft: '#FEE2E2',
   onInk: '#FFFFFF',
   onInkSecondary: '#D1D5DB',
 };
@@ -31,20 +31,21 @@ export type Palette = Record<ColorName, string>;
 export const darkColors: Palette = {
   bg: '#000000',
   surface: '#16181C',
-  surfaceAlt: '#2A1912',
+  surfaceAlt: '#1E2732',
+  card: '#16181C',
   tabBar: '#000000',
   tabActive: '#2A1912',
-  ink: '#F2EEEC',
-  muted: '#BDB8B5',
-  faint: '#8E827E',
+  ink: '#FFFFFF',
+  muted: '#9CA3AF',
+  faint: '#71767B',
   line: '#2F3336',
   accent: '#E4531D',
   accentSoft: '#3A1D12',
-  success: '#4FB37A',
-  successSoft: '#12291B',
-  warn: '#D9A441',
+  success: '#00BA7C',
+  successSoft: '#06281E',
+  warn: '#F59E0B',
   warnSoft: '#2E230E',
-  danger: '#E5675A',
+  danger: '#F4212E',
   dangerSoft: '#331614',
   onInk: '#000000',
   onInkSecondary: '#4A4543',
@@ -52,9 +53,9 @@ export const darkColors: Palette = {
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 
-const THEME_STORAGE_KEY = 'aula_theme_preference';
+const THEME_STORAGE_KEY = 'cashbank_theme_preference';
 
-let currentThemeMode: ThemeMode = 'system';
+let currentThemeMode: ThemeMode = 'dark';
 let currentSystemScheme: ColorSchemeName | null = Appearance.getColorScheme();
 
 function computeIsDark(mode: ThemeMode, sysScheme: ColorSchemeName | null | undefined): boolean {
@@ -124,7 +125,7 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue>({
   isDark,
-  colors,
+  colors: getActiveColors(),
   mode: currentThemeMode,
   setMode: setThemeMode,
   toggleTheme: async () => {},
@@ -147,9 +148,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     await setThemeMode(next);
   };
 
+  const activeColors = getActiveColors();
+
   const value: ThemeContextValue = {
     isDark,
-    colors: getActiveColors(),
+    colors: activeColors,
     mode: currentThemeMode,
     setMode: setThemeMode,
     toggleTheme,
@@ -163,8 +166,8 @@ export function useTheme(): ThemeContextValue {
 }
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 28, xxxl: 40 } as const;
-export const gutter = space.xl;
-export const radius = { sm: 10, md: 14, lg: 20, xl: 32, pill: 999 } as const;
+export const gutter = space.lg;
+export const radius = { sm: 10, md: 14, lg: 18, xl: 26, pill: 999 } as const;
 
 export const fonts = {
   light: 'System',
@@ -175,13 +178,13 @@ export const fonts = {
 } as const;
 
 export const type = {
-  display: { fontSize: 32, lineHeight: 38, letterSpacing: -0.9, fontWeight: '700' },
-  title: { fontSize: 26, lineHeight: 32, letterSpacing: -0.7, fontWeight: '700' },
-  heading: { fontSize: 17, lineHeight: 23, letterSpacing: -0.3, fontWeight: '700' },
-  body: { fontSize: 15, lineHeight: 22, fontWeight: '400' },
-  label: { fontSize: 14, lineHeight: 20, fontWeight: '600' },
-  caption: { fontSize: 12, lineHeight: 16, fontWeight: '400' },
-  kicker: { fontSize: 13, lineHeight: 18, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
+  display: { fontSize: 30, lineHeight: 36, letterSpacing: -0.8, fontWeight: '800' },
+  title: { fontSize: 24, lineHeight: 30, letterSpacing: -0.6, fontWeight: '800' },
+  heading: { fontSize: 17, lineHeight: 22, letterSpacing: -0.3, fontWeight: '700' },
+  body: { fontSize: 15, lineHeight: 21, fontWeight: '400' },
+  label: { fontSize: 14, lineHeight: 19, fontWeight: '600' },
+  caption: { fontSize: 13, lineHeight: 17, fontWeight: '400' },
+  kicker: { fontSize: 12, lineHeight: 16, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.9 },
 } satisfies Record<string, TextStyle>;
 
 export type TypeVariant = keyof typeof type;

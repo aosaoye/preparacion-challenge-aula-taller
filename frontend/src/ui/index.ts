@@ -4,6 +4,7 @@ export { Button, IconButton } from './Button';
 export { Field } from './Field';
 export { Chip, ChipRow } from './Chip';
 export { Avatar } from './Avatar';
+export { Cover } from './Cover';
 export { Badge, type Tone } from './Badge';
 export { Screen, ScreenHeader, NavHeader, Sheet, Card, Section } from './Layout';
 export { ListRow, Divider } from './Rows';

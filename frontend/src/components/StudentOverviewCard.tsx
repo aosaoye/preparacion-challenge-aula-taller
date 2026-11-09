@@ -1,7 +1,8 @@
+import React from 'react';
 import { Feather } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Student } from '../types';
-import { Avatar, Badge, colors, EmptyState, Field, radius, space, Text } from '../ui';
+import { Avatar, Badge, Button, Divider, EmptyState, Field, gutter, space, Text, useTheme } from '../ui';
 
 type StudentOverviewCardProps = {
   search: string;
@@ -24,93 +25,133 @@ export function StudentOverviewCard({
   onDeleteStudent,
   isEnrolled,
 }: StudentOverviewCardProps) {
+  const { isDark, colors } = useTheme();
+
   return (
-    <View style={s.card}>
-      <View style={s.topRow}>
-        <View>
-          <Text variant="kicker">Directorio de Alumnos</Text>
-          <Text variant="title">Estudiantes</Text>
+    <View style={s.feedContainer}>
+      {/* Barra de búsqueda limpia de Twitter/X */}
+      <View style={s.searchWrap}>
+        <Field
+          placeholder="Buscar alumno por nombre o curso..."
+          value={search}
+          onChangeText={onSearchChange}
+        />
+      </View>
+
+      {/* Cabecera de estado del taller activo */}
+      <View
+        style={[
+          s.workshopBanner,
+          {
+            backgroundColor: isDark ? '#16181C' : '#F7F9F9',
+            borderColor: isDark ? '#2F3336' : '#EFF3F4',
+          },
+        ]}
+      >
+        <View style={s.bannerInfo}>
+          <Text variant="caption" style={{ color: colors.muted }}>
+            Taller asignado para inscripción:
+          </Text>
+          <Text variant="label" style={{ color: colors.ink, fontWeight: '700' }} numberOfLines={1}>
+            {workshopName}
+          </Text>
         </View>
+
         <Badge
           label={`Taller #${selectedWorkshopId}`}
           tone="accent"
         />
       </View>
 
-      <Field
-        placeholder="Buscar por nombre o curso..."
-        value={search}
-        onChangeText={onSearchChange}
-      />
-
-      <View style={s.helperRow}>
-        <Text variant="caption" style={{ color: colors.muted }}>
-          Taller asignado: <Text variant="caption" style={{ fontWeight: '700', color: colors.ink }}>{workshopName}</Text>
-        </Text>
-        <Text variant="caption" style={{ color: colors.accent, fontWeight: '600' }}>
-          Toca un alumno para (des)inscribir
-        </Text>
-      </View>
-
-      <View style={s.listWrap}>
+      {/* Lista estilo feed de Cashbank con Divider entre cada elemento */}
+      <View style={s.listContainer}>
         {filteredStudents.length === 0 ? (
           <EmptyState
             icon="users"
-            title="Sin alumnos"
-            message="No encontramos alumnos que coincidan con los filtros."
+            title="No se encontraron alumnos"
+            message="No hay alumnos que coincidan con la búsqueda o el filtro seleccionado."
           />
         ) : (
-          filteredStudents.map((student) => {
+          filteredStudents.map((student, index) => {
             const enrolled = isEnrolled ? isEnrolled(student.id) : student.active;
             return (
-              <Pressable
-                key={student.id}
-                onPress={() => onToggleEnrollment(student.id)}
-                style={({ pressed }) => [
-                  s.studentRow,
-                  enrolled && s.studentRowEnrolled,
-                  pressed && { opacity: 0.75 },
-                ]}
-              >
-                <Avatar name={student.name} size={42} />
+              <React.Fragment key={student.id}>
+                {index > 0 && <Divider />}
+                <Pressable
+                  onPress={() => onToggleEnrollment(student.id)}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    s.studentRow,
+                    {
+                      backgroundColor: enrolled
+                        ? isDark ? '#1E1410' : '#FDF6F3'
+                        : isDark ? '#000000' : '#FFFFFF',
+                    },
+                    pressed && { opacity: 0.88 },
+                  ]}
+                >
+                  {/* Avatar */}
+                  <Avatar name={student.name} size={42} />
 
-                <View style={s.studentBody}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text variant="heading" numberOfLines={1}>
-                      {student.name}
+                  {/* Datos del alumno */}
+                  <View style={s.studentBody}>
+                    <View style={s.nameRow}>
+                      <Text
+                        variant="heading"
+                        numberOfLines={1}
+                        style={{
+                          color: colors.ink,
+                          fontWeight: '700',
+                          flexShrink: 1,
+                        }}
+                      >
+                        {student.name}
+                      </Text>
+                      {enrolled && (
+                        <Feather name="check-circle" size={15} color={colors.accent} />
+                      )}
+                    </View>
+
+                    <Text variant="caption" style={{ color: colors.muted }} numberOfLines={1}>
+                      {student.course}
                     </Text>
-                    {enrolled && (
-                      <Feather name="check-circle" size={14} color={colors.accent} />
+
+                    <View style={s.tagsRow}>
+                      <Badge
+                        label={`Nivel: ${student.level}%`}
+                        tone={student.level >= 80 ? 'success' : student.level >= 50 ? 'accent' : 'neutral'}
+                      />
+                    </View>
+                  </View>
+
+                  {/* Acciones: Botón píldora estilo Cashbank */}
+                  <View style={s.actionsCol}>
+                    <Button
+                      title={enrolled ? 'Inscrito' : 'Inscribir'}
+                      variant={enrolled ? 'primary' : 'secondary'}
+                      size="sm"
+                      onPress={() => onToggleEnrollment(student.id)}
+                    />
+
+                    {onDeleteStudent && (
+                      <Pressable
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          onDeleteStudent(student.id);
+                        }}
+                        hitSlop={8}
+                        style={[
+                          s.deleteBtn,
+                          { backgroundColor: isDark ? '#202327' : '#EFF3F4' },
+                        ]}
+                        accessibilityLabel={`Eliminar a ${student.name}`}
+                      >
+                        <Feather name="trash-2" size={14} color={colors.danger} />
+                      </Pressable>
                     )}
                   </View>
-                  <Text variant="caption" style={{ color: colors.muted }}>
-                    {student.course}
-                  </Text>
-                </View>
-
-                <View style={s.scoreWrap}>
-                  <Badge
-                    label={enrolled ? 'Inscrito' : 'Libre'}
-                    tone={enrolled ? 'accent' : 'neutral'}
-                  />
-                  <Text variant="caption" style={{ fontWeight: '700', marginTop: 2 }}>
-                    {student.level}%
-                  </Text>
-                </View>
-
-                {onDeleteStudent && (
-                  <Pressable
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      onDeleteStudent(student.id);
-                    }}
-                    hitSlop={8}
-                    style={s.deleteBtn}
-                  >
-                    <Feather name="trash-2" size={14} color={colors.danger} />
-                  </Pressable>
-                )}
-              </Pressable>
+                </Pressable>
+              </React.Fragment>
             );
           })
         )}
@@ -120,52 +161,66 @@ export function StudentOverviewCard({
 }
 
 const s = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: space.lg,
+  feedContainer: {
+    width: '100%',
+  },
+  searchWrap: {
+    paddingHorizontal: gutter,
+    paddingTop: space.sm,
+    paddingBottom: space.xs,
+  },
+  workshopBanner: {
+    marginHorizontal: gutter,
+    marginVertical: space.xs,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.line,
-    gap: space.md,
-  },
-  topRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  helperRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: space.xs,
-  },
-  listWrap: {
+    justifyContent: 'space-between',
     gap: space.sm,
+  },
+  bannerInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  listContainer: {
+    width: '100%',
+    marginTop: space.xs,
   },
   studentRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: space.md,
-    borderWidth: 1,
-    borderColor: colors.line,
     gap: space.md,
-  },
-  studentRowEnrolled: {
-    backgroundColor: colors.surfaceAlt,
-    borderColor: colors.accent,
+    paddingHorizontal: gutter,
+    paddingVertical: space.md,
   },
   studentBody: {
     flex: 1,
-    gap: 2,
+    gap: 3,
   },
-  scoreWrap: {
-    alignItems: 'flex-end',
-    gap: 2,
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 2,
+  },
+  actionsCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
   },
   deleteBtn: {
-    padding: 6,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

@@ -1,5 +1,6 @@
+import React from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
-import { Button, colors, Field, radius, space, Text } from '../ui';
+import { Button, Field, radius, space, Text, useTheme } from '../ui';
 
 type NewItemModalProps = {
   visible: boolean;
@@ -30,16 +31,28 @@ export function NewItemModal({
   onWorkshopInstructorChange,
   onSave,
 }: NewItemModalProps) {
+  const { isDark, colors } = useTheme();
   const isStudent = mode === 'student';
 
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
       <Pressable style={s.overlay} onPress={onClose}>
-        <Pressable style={s.modal} onPress={(e) => e.stopPropagation()}>
+        <Pressable
+          style={[
+            s.modal,
+            {
+              backgroundColor: isDark ? '#16181C' : '#FFFFFF',
+              borderColor: isDark ? '#2F3336' : '#EFF3F4',
+            },
+          ]}
+          onPress={(e) => e.stopPropagation()}
+        >
           <View style={s.header}>
-            <Text variant="kicker">{isStudent ? 'Registro escolar' : 'Nuevo módulo'}</Text>
-            <Text variant="title" style={{ marginTop: 4 }}>
-              {isStudent ? 'Nuevo alumno' : 'Nuevo taller'}
+            <Text variant="kicker" style={{ color: colors.accent }}>
+              {isStudent ? 'Registro de Estudiante' : 'Nuevo Taller'}
+            </Text>
+            <Text variant="title" style={{ color: colors.ink, marginTop: 4 }}>
+              {isStudent ? 'Añadir Alumno' : 'Crear Taller'}
             </Text>
           </View>
 
@@ -47,14 +60,15 @@ export function NewItemModal({
             {isStudent ? (
               <>
                 <Field
-                  label="Nombre del alumno"
+                  label="Nombre completo del alumno"
                   placeholder="Ej. Sofía Martín"
                   value={studentName}
                   onChangeText={onStudentNameChange}
+                  autoFocus
                 />
                 <Field
-                  label="Curso / Especialidad"
-                  placeholder="Ej. Matemáticas Avanzadas"
+                  label="Curso o Especialidad"
+                  placeholder="Ej. Robótica y Programación"
                   value={studentCourse}
                   onChangeText={onStudentCourseChange}
                 />
@@ -63,9 +77,10 @@ export function NewItemModal({
               <>
                 <Field
                   label="Nombre del taller"
-                  placeholder="Ej. Robótica e Inteligencia Artificial"
+                  placeholder="Ej. Laboratorio de IA y Robótica"
                   value={workshopName}
                   onChangeText={onWorkshopNameChange}
+                  autoFocus
                 />
                 <Field
                   label="Instructor a cargo"
@@ -100,19 +115,17 @@ export function NewItemModal({
 const s = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: space.lg,
   },
   modal: {
     width: '100%',
-    maxWidth: 420,
-    backgroundColor: colors.surface,
+    maxWidth: 440,
     borderRadius: radius.xl,
     padding: space.xl,
     borderWidth: 1,
-    borderColor: colors.line,
     gap: space.md,
   },
   header: {

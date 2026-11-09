@@ -2,7 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from './Text';
-import { colors, gutter, radius, space } from './theme';
+import { gutter, radius, space, useTheme } from './theme';
 
 type RowProps = {
   title: string;
@@ -25,17 +25,19 @@ export function ListRow({
   chevron,
   destructive,
 }: RowProps) {
+  const { isDark, colors } = useTheme();
+
   return (
     <Pressable
       onPress={onPress}
       disabled={!onPress}
-      style={({ pressed }) => [s.row, pressed && { opacity: 0.7 }]}
+      style={({ pressed }) => [s.row, pressed && { opacity: 0.85 }]}
       accessibilityRole={onPress ? 'button' : undefined}
     >
       {left ? (
         left
       ) : icon ? (
-        <View style={s.iconWrap}>
+        <View style={[s.iconWrap, { backgroundColor: isDark ? '#202327' : '#EFF3F4' }]}>
           <Feather
             name={icon}
             size={18}
@@ -47,13 +49,13 @@ export function ListRow({
       <View style={{ flex: 1, gap: 2 }}>
         <Text
           variant="heading"
-          style={destructive && { color: colors.danger }}
+          style={destructive ? { color: colors.danger } : { color: colors.ink }}
           numberOfLines={1}
         >
           {title}
         </Text>
         {subtitle ? (
-          <Text variant="caption" numberOfLines={1}>
+          <Text variant="caption" style={{ color: colors.muted }} numberOfLines={1}>
             {subtitle}
           </Text>
         ) : null}
@@ -62,15 +64,27 @@ export function ListRow({
       {right}
 
       {(chevron ?? !!onPress) && (
-        <Feather name="chevron-right" size={20} color={colors.faint} />
+        <Feather
+          name="chevron-right"
+          size={18}
+          color={isDark ? '#71767B' : '#8B98A5'}
+        />
       )}
     </Pressable>
   );
 }
 
-export const Divider = () => (
-  <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: colors.line }} />
-);
+export function Divider() {
+  const { isDark } = useTheme();
+  return (
+    <View
+      style={{
+        height: StyleSheet.hairlineWidth,
+        backgroundColor: isDark ? '#2F3336' : '#EFF3F4',
+      }}
+    />
+  );
+}
 
 const s = StyleSheet.create({
   row: {
@@ -84,7 +98,6 @@ const s = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: radius.md,
-    backgroundColor: colors.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
   },

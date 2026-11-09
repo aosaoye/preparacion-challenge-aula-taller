@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
-import { colors, radius } from './theme';
+import { radius, useTheme } from './theme';
 import { Text } from './Text';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'light' | 'danger';
@@ -25,25 +25,28 @@ export function Button({
   icon,
   style,
 }: Props) {
-  const fg =
-    variant === 'primary'
-      ? colors.onInk
-      : variant === 'ghost'
-        ? colors.accent
-        : variant === 'danger'
-          ? '#fff'
-          : colors.ink;
+  const { isDark, colors } = useTheme();
 
-  const bgStyle =
-    variant === 'primary'
-      ? s.primary
-      : variant === 'secondary'
-        ? s.secondary
-        : variant === 'danger'
-          ? s.danger
-          : variant === 'light'
-            ? { backgroundColor: colors.surfaceAlt }
-            : null;
+  // Color de texto y fondo según cashbank
+  let bg = colors.ink;
+  let fg = colors.onInk;
+
+  if (variant === 'primary') {
+    bg = isDark ? '#FFFFFF' : '#0F1419';
+    fg = isDark ? '#000000' : '#FFFFFF';
+  } else if (variant === 'secondary') {
+    bg = isDark ? '#000000' : '#FFFFFF';
+    fg = isDark ? '#FFFFFF' : '#0F1419';
+  } else if (variant === 'ghost') {
+    bg = 'transparent';
+    fg = colors.accent;
+  } else if (variant === 'danger') {
+    bg = colors.danger;
+    fg = '#FFFFFF';
+  } else if (variant === 'light') {
+    bg = colors.surfaceAlt;
+    fg = colors.ink;
+  }
 
   return (
     <Pressable
@@ -54,8 +57,13 @@ export function Button({
       style={({ pressed }) => [
         s.base,
         size === 'sm' ? s.sm : s.md,
-        bgStyle,
-        (pressed || disabled) && { opacity: disabled ? 0.45 : 0.75 },
+        {
+          backgroundColor: bg,
+          borderColor: variant === 'secondary' ? colors.line : 'transparent',
+          borderWidth: variant === 'secondary' ? 1 : 0,
+        },
+        pressed && { opacity: 0.88 },
+        disabled && { opacity: 0.6 },
         style,
       ]}
     >
@@ -64,7 +72,14 @@ export function Button({
       ) : (
         <View style={s.content}>
           {icon && <Feather name={icon} size={size === 'sm' ? 16 : 18} color={fg} />}
-          <Text variant="label" style={{ color: fg, fontSize: size === 'sm' ? 13 : 15 }}>
+          <Text
+            variant="label"
+            style={{
+              color: fg,
+              fontSize: size === 'sm' ? 13 : 15,
+              fontWeight: '700',
+            }}
+          >
             {title}
           </Text>
         </View>
@@ -82,8 +97,17 @@ type IconProps = {
   size?: number;
 };
 
-export function IconButton({ name, onPress, label, tone = 'plain', active, size = 20 }: IconProps) {
+export function IconButton({
+  name,
+  onPress,
+  label,
+  tone = 'plain',
+  active,
+  size = 20,
+}: IconProps) {
+  const { colors } = useTheme();
   const fg = active || tone === 'accent' ? colors.accent : colors.ink;
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -100,7 +124,7 @@ export function IconButton({ name, onPress, label, tone = 'plain', active, size 
         tone === 'accent' && {
           backgroundColor: colors.accentSoft,
         },
-        pressed && { opacity: 0.6 },
+        pressed && { opacity: 0.85 },
       ]}
     >
       <Feather name={name} size={size} color={fg} />
@@ -115,11 +139,8 @@ const s = StyleSheet.create({
     borderRadius: radius.pill,
     margin: 0,
   },
-  md: { height: 50, paddingHorizontal: 22 },
-  sm: { height: 36, paddingHorizontal: 16 },
-  primary: { backgroundColor: colors.ink },
-  secondary: { borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface },
-  danger: { backgroundColor: colors.danger },
-  content: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  icon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  md: { height: 48, paddingHorizontal: 22 },
+  sm: { height: 34, paddingHorizontal: 16 },
+  content: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  icon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
 });
